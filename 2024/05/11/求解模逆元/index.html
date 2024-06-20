@@ -14,7 +14,7 @@
 <meta property="og:description" content="扩展的欧几里得算法基于辗转相除和回代">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2024-05-11T12:57:07.000Z">
-<meta property="article:modified_time" content="2024-05-16T09:21:46.000Z">
+<meta property="article:modified_time" content="2024-06-20T14:40:53.764Z">
 <meta property="article:author" content="Sliver Eagle">
 <meta property="article:tag" content="数论">
 <meta property="article:tag" content="信息安全数学基础">
@@ -89,7 +89,7 @@
      --><!--
        --><li><a href="/tags/">标签</a></li><!--
      --><!--
-       --><li><a target="_blank" rel="noopener" href="http://github.com/probberechts">项目</a></li><!--
+       --><li><a target="_blank" rel="noopener" href="https://github.com/xgshunliruyi">项目</a></li><!--
      -->
       </ul>
     </span>
@@ -182,9 +182,9 @@
   <div class="content e-content" itemprop="articleBody">
     <p>扩展的欧几里得算法基于辗转相除和回代</p>
 <span id="more"></span>
-<h3 id="定理1"><a href="#定理1" class="headerlink" title="定理1"></a>定理1</h3><p>设$a,b,c$是任意三个不全为0的整数，且$a&#x3D;bq+c$，其中$q$是整数，则$(a,b)&#x3D;(b,c)$<br>.<br><strong>证明</strong><br>设$a,b$的所有公因子组成的集合为$A$，且$b,c$的所有公因子组成的集合为$B$<br>.<br>若$x \in A$，由$a&#x3D;bq+c$知$x|c$，则$x \in B$；同理，若$x \in B$，由$a&#x3D;bq+c$知$x|a$，则$x \in A$；故$A&#x3D;B$，故$(a,b)&#x3D;(b,c)$.</p>
-<h3 id="定理2"><a href="#定理2" class="headerlink" title="定理2"></a>定理2</h3><p>对任意不全为0整数$a,b$，存在整数$x,y$，使得$ax+by&#x3D;(a,b)$<br>.<br><strong>证明</strong><br>对整数$a,b$作上述辗转相除后回代<br>$$(a,b)&#x3D;r_{n}&#x3D;r_{n-2}-r_{n-1}q_{n}$$<br>$$&#x3D;r_{n-2}-(r_{n-3}-r_{n-2}q_{n-1})q_{n}$$<br>$$&#x3D;…&#x3D;ax+by$$</p>
-<h3 id="求解模逆元"><a href="#求解模逆元" class="headerlink" title="求解模逆元"></a>求解模逆元</h3><p>对于同余方程$ax \equiv 1 \ (mod \ m)$, 当且仅当$(a,m)&#x3D;1$时有解且恰有一个解，称这个解为$a$模$m$的逆，记为$a^{-1}$<br>.<br><strong>辗转相除（求最大公因数）</strong><br>$$a&#x3D;mq_{1}+r_{1}, \quad 0&lt;r_{1}&lt;m$$<br>$$m&#x3D;r_{1} q_{2}+r_{2}, \quad 0&lt;r_{2}&lt;r_{1}$$<br>$$…$$<br>$$r_{n-2}&#x3D;r_{n-1} q_{n}+r_{n}, \quad 0&lt;r_{n}&lt;r_{n-1}$$<br>$$r_{n-1}&#x3D;r_{n} q_{n+1}+r_{n+1}, \quad r_{n+1}&#x3D;0$$<br>由上述定理1可知，$(a,m)&#x3D;(m,r_{1})&#x3D;(r_{1},r_{2})&#x3D;…&#x3D;(r_{n-1},r_{n})&#x3D;r_{n}$<br>.<br><strong>递推过程</strong><br>由定理1知$(a,m)&#x3D;(m, a \% m)&#x3D;…&#x3D;g$，注意$g&#x3D;1$<br>.<br>由定理2知$au+mv&#x3D;g$，且$mu^{&#39;}+(a \% m)v^{&#39;}&#x3D;g$<br>.<br>又$a \% m&#x3D;a-\lfloor \frac{a}{m} \rfloor m$<br>.<br>带入第二个等式有$mu^{&#39;}+(a-\lfloor \frac{a}{m} \rfloor m)v^{&#39;}&#x3D;g$<br>.<br>整理得$av^{&#39;}+m(u^{&#39;}-\lfloor \frac{a}{m} \rfloor v^{&#39;})&#x3D;g$<br>.<br>所以有$u&#x3D;v^{&#39;} \quad v&#x3D;u^{&#39;}-\lfloor \frac{a}{m} \rfloor v^{&#39;}$<br>.<br><strong>算法过程</strong><br>根据上述递推关系可得到最终的$u,v$满足$au+mv&#x3D;(a,m)&#x3D;1$，等式两边对$m$取余有$au+mv \equiv 1 \ (mod \ m)$，即$au \equiv 1 \ (mod \ m)$，则最终$a^{-1} \equiv u \ (mod \ m)$<br>.<br><strong>算法实现</strong>  </p>
+<h3 id="定理1"><a href="#定理1" class="headerlink" title="定理1"></a>定理1</h3><p>设$a,b,c$是任意三个不全为0的整数，且$a&#x3D;bq+c$，其中$q$是整数，则$(a,b)&#x3D;(b,c)$<br><strong>证明</strong><br>设$a,b$的所有公因子组成的集合为$A$，且$b,c$的所有公因子组成的集合为$B$<br>若$x \in A$，由$a&#x3D;bq+c$知$x|c$，则$x \in B$；同理，若$x \in B$，由$a&#x3D;bq+c$知$x|a$，则$x \in A$；故$A&#x3D;B$，故$(a,b)&#x3D;(b,c)$.</p>
+<h3 id="定理2"><a href="#定理2" class="headerlink" title="定理2"></a>定理2</h3><p>对任意不全为0整数$a,b$，存在整数$x,y$，使得$ax+by&#x3D;(a,b)$<br><strong>证明</strong><br>对整数$a,b$作上述辗转相除后回代<br>$$(a,b)&#x3D;r_{n}&#x3D;r_{n-2}-r_{n-1}q_{n}$$<br>$$&#x3D;r_{n-2}-(r_{n-3}-r_{n-2}q_{n-1})q_{n}$$<br>$$&#x3D;…&#x3D;ax+by$$</p>
+<h3 id="求解模逆元"><a href="#求解模逆元" class="headerlink" title="求解模逆元"></a>求解模逆元</h3><p>对于同余方程$ax \equiv 1 \ (mod \ m)$, 当且仅当$(a,m)&#x3D;1$时有解且恰有一个解，称这个解为$a$模$m$的逆，记为$a^{-1}$<br><strong>辗转相除（求最大公因数）</strong><br>$$a&#x3D;mq_{1}+r_{1}, \quad 0&lt;r_{1}&lt;m$$<br>$$m&#x3D;r_{1} q_{2}+r_{2}, \quad 0&lt;r_{2}&lt;r_{1}$$<br>$$…$$<br>$$r_{n-2}&#x3D;r_{n-1} q_{n}+r_{n}, \quad 0&lt;r_{n}&lt;r_{n-1}$$<br>$$r_{n-1}&#x3D;r_{n} q_{n+1}+r_{n+1}, \quad r_{n+1}&#x3D;0$$<br>由上述定理1可知，$(a,m)&#x3D;(m,r_{1})&#x3D;(r_{1},r_{2})&#x3D;…&#x3D;(r_{n-1},r_{n})&#x3D;r_{n}$<br><strong>递推过程</strong><br>由定理1知$(a,m)&#x3D;(m, a \% m)&#x3D;…&#x3D;g$，注意$g&#x3D;1$<br>由定理2知$au+mv&#x3D;g$，且$mu^{&#39;}+(a \% m)v^{&#39;}&#x3D;g$<br>又$a \% m&#x3D;a-\lfloor \frac{a}{m} \rfloor m$<br>带入第二个等式有$mu^{&#39;}+(a-\lfloor \frac{a}{m} \rfloor m)v^{&#39;}&#x3D;g$<br>整理得$av^{&#39;}+m(u^{&#39;}-\lfloor \frac{a}{m} \rfloor v^{&#39;})&#x3D;g$<br>所以有$u&#x3D;v^{&#39;} \quad v&#x3D;u^{&#39;}-\lfloor \frac{a}{m} \rfloor v^{&#39;}$<br><strong>算法过程</strong><br>根据上述递推关系可得到最终的$u,v$满足$au+mv&#x3D;(a,m)&#x3D;1$，等式两边对$m$取余有$au+mv \equiv 1 \ (mod \ m)$，即$au \equiv 1 \ (mod \ m)$，则最终$a^{-1} \equiv u \ (mod \ m)$<br><strong>算法实现</strong>  </p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"># Python</span><br><span class="line">def extended_gcd(a, m):</span><br><span class="line">    if m == 0:</span><br><span class="line">        return a, 1, 0</span><br><span class="line">    else:</span><br><span class="line">        g, u, v = extended_gcd(m, a % m)</span><br><span class="line">        return g, v, u - (a // m) * v</span><br><span class="line"></span><br><span class="line">def mod_inverse(a, m):</span><br><span class="line">    g, a_inv, _ = extended_gcd(a, m)</span><br><span class="line">    if g != 1:</span><br><span class="line">        raise ValueError(&quot;Inverse does not exists!&quot;)</span><br><span class="line">    return a_inv % m</span><br></pre></td></tr></table></figure>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">// C++</span><br><span class="line">tuple&lt;int, int, int&gt; extended_gcd(int a, int m) &#123;</span><br><span class="line">    if (b == 0) &#123;</span><br><span class="line">        return make_tuple(a, 1, 0);</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        auto [g, u, v] = extended_gcd(m, a % m);</span><br><span class="line">        return make_tuple(g, v, u - (a // m) * v);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">int mod_inverse(int a, int m) &#123;</span><br><span class="line">    auto [g, u, v] = extended_gcd(a, m);</span><br><span class="line">    if (g != 1) &#123;</span><br><span class="line">        throw invalid_argument(&quot;Modular inverse does not exists!&quot;);</span><br><span class="line">    &#125;</span><br><span class="line">    return (x % m + m) % m; //确保结果非负</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
   </div>
@@ -215,7 +215,7 @@
         
           <li><a href="/tags/">标签</a></li>
         
-          <li><a target="_blank" rel="noopener" href="http://github.com/probberechts">项目</a></li>
+          <li><a target="_blank" rel="noopener" href="https://github.com/xgshunliruyi">项目</a></li>
         
       </ul>
     </div>
@@ -279,7 +279,7 @@
      --><!--
        --><li><a href="/tags/">标签</a></li><!--
      --><!--
-       --><li><a target="_blank" rel="noopener" href="http://github.com/probberechts">项目</a></li><!--
+       --><li><a target="_blank" rel="noopener" href="https://github.com/xgshunliruyi">项目</a></li><!--
      -->
       </ul>
     </nav>

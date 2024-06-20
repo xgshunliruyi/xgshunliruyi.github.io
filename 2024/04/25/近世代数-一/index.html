@@ -14,7 +14,7 @@
 <meta property="og:description" content="近世代数简而言之就是群、环、域的故事，它是纠错码和密码学的重要数学基础，本文主要关于群的相关概念。">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2024-04-25T09:48:49.000Z">
-<meta property="article:modified_time" content="2024-05-04T06:55:54.000Z">
+<meta property="article:modified_time" content="2024-06-20T14:40:01.846Z">
 <meta property="article:author" content="Sliver Eagle">
 <meta property="article:tag" content="信息安全数学基础">
 <meta property="article:tag" content="近世代数">
@@ -89,7 +89,7 @@
      --><!--
        --><li><a href="/tags/">标签</a></li><!--
      --><!--
-       --><li><a target="_blank" rel="noopener" href="http://github.com/probberechts">项目</a></li><!--
+       --><li><a target="_blank" rel="noopener" href="https://github.com/xgshunliruyi">项目</a></li><!--
      -->
       </ul>
     </span>
@@ -189,19 +189,19 @@
 <li>G3（逆元）：$\forall a\in G,\exists a^{&#39;}\in G, 使得a\cdot a^{&#39;}&#x3D;a^{&#39;}\cdot a&#x3D;1$</li>
 </ul>
 <p>则称$(G,\cdot,1)$为群，简称群G，1称为群G的单位元，$a^{&#39;}$称为$a$的逆元.</p>
-<p>若$(G,\cdot,1)$还满足G4（交换律）:$a\cdot b&#x3D;b\cdot a, a,b\in G$，则称G为交换群<br>.<br>若$(G,\cdot,1)$仅满足G1,G2，则称G为有单位元的半群<br>.<br>若$(G,\cdot,1)$满足G1,G2,G4，则称G为由单位元的交换半群.</p>
+<p>若$(G,\cdot,1)$还满足G4（交换律）:$a\cdot b&#x3D;b\cdot a, a,b\in G$，则称G为交换群<br>若$(G,\cdot,1)$仅满足G1,G2，则称G为有单位元的半群<br>若$(G,\cdot,1)$满足G1,G2,G4，则称G为由单位元的交换半群.</p>
 <p><strong>可以验证，三元组(Z,+,0)是一个交换群，其中Z为整数集; $(Q^{*},*, 1)$也是一个交换群，其中$Q^{*}$是零以外的有理数</strong>.</p>
-<h3 id="希尔密码"><a href="#希尔密码" class="headerlink" title="希尔密码"></a>希尔密码</h3><p>设$GL_{n}(R)$为n阶实数可逆方阵的集合，$\cdot$为矩阵乘法，E为单位阵，则$(GL_{n}(R),\cdot,E)$为群<br>.<br>希尔密码的加密变换为<br>$$(y_{1}y_{2}…y_{m})&#x3D;(x_{1}x_{2}…x_{m})\cdot M \ mod \ 26$$<br>其中密钥$M\in GL_{m}(Z_{26}), x_{i},y_{i}\in Z_{26}, Z_{26}&#x3D;{0,1,…,25}$<br>.<br>希尔密码的解密变换为<br>$$(y_{1}y_{2}…y_{m})\cdot M^{-1}&#x3D;(x_{1}x_{2}…x_{m}) \ mod \ 26$$<br>需要注意的是这里的变换都是在模26下进行的运算，下面补充一些数论知识.<br><strong>矩阵的模n逆矩阵：</strong><br>对于方阵A，整数n，如果存在方阵B满足$AB \ mod \ n &#x3D; BA \ mod \ n &#x3D; E$，则称B是A的模n逆矩阵，记为$A^{-1} \ mod \ n&#x3D; B$<br>.<br>A存在模n逆矩阵的充要条件是$gcd(det \ A, n)&#x3D;1$，并且<br>$$A^{-1} \ mod \ n&#x3D;(|A|^{-1} \ mod \ n \cdot A^{*}) \ mod \ n$$<br>其中$|A|^{-1} \ mod \ n$是|A|在模n下的乘法逆元<br>.<br><strong>模n的乘法逆元：</strong><br>对于整数a,n，如果存在整数b满足$ab \ mod \ n&#x3D;1$，则称b是a模n的乘法逆元，记为$a^{-1} \ mod \ n &#x3D; b$。其中a存在模n乘法逆元的充要条件是$gcd(a,n)&#x3D;1$<br>.<br>下面是求解x的模n逆元的经典算法  </p>
+<h3 id="希尔密码"><a href="#希尔密码" class="headerlink" title="希尔密码"></a>希尔密码</h3><p>设$GL_{n}(R)$为n阶实数可逆方阵的集合，$\cdot$为矩阵乘法，E为单位阵，则$(GL_{n}(R),\cdot,E)$为群<br>希尔密码的加密变换为<br>$$(y_{1}y_{2}…y_{m})&#x3D;(x_{1}x_{2}…x_{m})\cdot M \ mod \ 26$$<br>其中密钥$M\in GL_{m}(Z_{26}), x_{i},y_{i}\in Z_{26}, Z_{26}&#x3D;{0,1,…,25}$<br>希尔密码的解密变换为<br>$$(y_{1}y_{2}…y_{m})\cdot M^{-1}&#x3D;(x_{1}x_{2}…x_{m}) \ mod \ 26$$<br>需要注意的是这里的变换都是在模26下进行的运算，下面补充一些数论知识.<br><strong>矩阵的模n逆矩阵：</strong><br>对于方阵A，整数n，如果存在方阵B满足$AB \ mod \ n &#x3D; BA \ mod \ n &#x3D; E$，则称B是A的模n逆矩阵，记为$A^{-1} \ mod \ n&#x3D; B$<br>A存在模n逆矩阵的充要条件是$gcd(det \ A, n)&#x3D;1$，并且<br>$$A^{-1} \ mod \ n&#x3D;(|A|^{-1} \ mod \ n \cdot A^{*}) \ mod \ n$$<br>其中$|A|^{-1} \ mod \ n$是|A|在模n下的乘法逆元<br><strong>模n的乘法逆元：</strong><br>对于整数a,n，如果存在整数b满足$ab \ mod \ n&#x3D;1$，则称b是a模n的乘法逆元，记为$a^{-1} \ mod \ n &#x3D; b$。其中a存在模n乘法逆元的充要条件是$gcd(a,n)&#x3D;1$<br>下面是求解x的模n逆元的经典算法  </p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">def extended_gcd(a, b):</span><br><span class="line">    if b == 0:</span><br><span class="line">        return a, 1, 0</span><br><span class="line">    else:</span><br><span class="line">        d, x, y = extended_gcd(b, a % b)</span><br><span class="line">        return d, y, x - (a // b) * y</span><br><span class="line"></span><br><span class="line">def mod_inverse(x, n):</span><br><span class="line">    d, x_inv, _ = extended_gcd(x, n)</span><br><span class="line">    if d != 1:</span><br><span class="line">        raise ValueError(&quot;Inverse does not exist&quot;)</span><br><span class="line">    return x_inv % n</span><br></pre></td></tr></table></figure>
-<h2 id="子群"><a href="#子群" class="headerlink" title="子群"></a>子群</h2><p>设$(G,\cdot ,1)$为群，A为G的子集合。若$1\in A$且$(A,\cdot,1)$构成群，则称A为G的子群，并记为$A\le G$<br>.  </p>
-<h2 id="循环群"><a href="#循环群" class="headerlink" title="循环群"></a>循环群</h2><p>若群G的每一个元都能表示成一个元素a的幂，则G称为由a生成的循环群，记作$G&#x3D;&lt; a &gt;$，a称为循环群G的生成元<br>.<br>根据元素的阶的性质，循环群$G&#x3D;&lt; a &gt;$共有两种类型：</p>
+<h2 id="子群"><a href="#子群" class="headerlink" title="子群"></a>子群</h2><p>设$(G,\cdot ,1)$为群，A为G的子集合。若$1\in A$且$(A,\cdot,1)$构成群，则称A为G的子群，并记为$A\le G$  </p>
+<h2 id="循环群"><a href="#循环群" class="headerlink" title="循环群"></a>循环群</h2><p>若群G的每一个元都能表示成一个元素a的幂，则G称为由a生成的循环群，记作$G&#x3D;&lt; a &gt;$，a称为循环群G的生成元<br>根据元素的阶的性质，循环群$G&#x3D;&lt; a &gt;$共有两种类型：</p>
 <ul>
 <li>如果a的阶为n，即$a^{n}&#x3D;1$，那么此时$G&#x3D;&lt; a &gt;&#x3D;&lt; a,a^{2},…,a^{n-1},1 &gt;$，称G为由a生成的n阶循环群</li>
 <li>如果不存在$a^{n}&#x3D;1$，则称G为无限阶循环群</li>
 </ul>
 <h2 id="对称群"><a href="#对称群" class="headerlink" title="对称群"></a>对称群</h2><h3 id="置换"><a href="#置换" class="headerlink" title="置换"></a>置换</h3><p>$S&#x3D;{1,2,…,n}$，映射$\sigma : S\to S$是可逆的，则称$\sigma$为$S$上的置换</p>
 <h3 id="对称群的定义"><a href="#对称群的定义" class="headerlink" title="对称群的定义"></a>对称群的定义</h3><p>全体S上的置换所构成的集合记为$S_{n}$，单位元1为恒等置换，$S_{n}$中以$\sigma (i)$表示i在置换$\sigma$下的像，定义$S_{n}$中两元素$\sigma,\eta$的乘积为<br>$[ \sigma \cdot \eta ](i)&#x3D;\sigma(\eta (i))$<br>则$(S_{n},\cdot,1)$成群，群$S_{n}$称为n次对称群</p>
-<h3 id="置换密码"><a href="#置换密码" class="headerlink" title="置换密码"></a>置换密码</h3><p>置换密码中加密变换为<br>$$(y_{1} \ y_{2} \ … \ y_{m})&#x3D;(\sigma (x_{1}) \ \sigma (x_{2}) \ … \ \sigma(x_{m}))$$<br>$x_{i},y_{i} \in S&#x3D;{1,2,…,m}, \ \sigma \in S_{m}, \ S_{m}$为{1,2,…,m}上的m次对称群<br>.<br>设置换密码中$\sigma &#x3D; \begin{pmatrix} 1 &amp; 2 &amp; 3 &amp; 4 \\ 4 &amp; 1 &amp; 2 &amp; 3 \\ \end{pmatrix} \in S_{4}$, 明文<code>MAGAZINE</code>对应的密文<code>AMAGEZIN</code>.</p>
+<h3 id="置换密码"><a href="#置换密码" class="headerlink" title="置换密码"></a>置换密码</h3><p>置换密码中加密变换为<br>$$(y_{1} \ y_{2} \ … \ y_{m})&#x3D;(\sigma (x_{1}) \ \sigma (x_{2}) \ … \ \sigma(x_{m}))$$<br>$x_{i},y_{i} \in S&#x3D;{1,2,…,m}, \ \sigma \in S_{m}, \ S_{m}$为{1,2,…,m}上的m次对称群<br>设置换密码中$\sigma &#x3D; \begin{pmatrix} 1 &amp; 2 &amp; 3 &amp; 4 \\ 4 &amp; 1 &amp; 2 &amp; 3 \\ \end{pmatrix} \in S_{4}$, 明文<code>MAGAZINE</code>对应的密文<code>AMAGEZIN</code>.</p>
 <h3 id="代换密码"><a href="#代换密码" class="headerlink" title="代换密码"></a>代换密码</h3><p>代换密码中加密变换为<br>$$y&#x3D;\sigma (x)$$<br>$x,y \in \sum &#x3D; {A,B,…,Z}, \sigma \in S_{ym \sum}$, $S_{ym \sum}$为$\sum$上的对称群</p>
 
   </div>
@@ -232,7 +232,7 @@
         
           <li><a href="/tags/">标签</a></li>
         
-          <li><a target="_blank" rel="noopener" href="http://github.com/probberechts">项目</a></li>
+          <li><a target="_blank" rel="noopener" href="https://github.com/xgshunliruyi">项目</a></li>
         
       </ul>
     </div>
@@ -296,7 +296,7 @@
      --><!--
        --><li><a href="/tags/">标签</a></li><!--
      --><!--
-       --><li><a target="_blank" rel="noopener" href="http://github.com/probberechts">项目</a></li><!--
+       --><li><a target="_blank" rel="noopener" href="https://github.com/xgshunliruyi">项目</a></li><!--
      -->
       </ul>
     </nav>

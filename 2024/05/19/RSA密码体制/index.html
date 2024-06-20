@@ -14,7 +14,7 @@
 <meta property="og:description" content="RSA密码的安全性基于数论中大整数分解的困难性">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2024-05-19T07:29:50.000Z">
-<meta property="article:modified_time" content="2024-05-23T07:43:14.000Z">
+<meta property="article:modified_time" content="2024-06-20T14:41:42.141Z">
 <meta property="article:author" content="Sliver Eagle">
 <meta property="article:tag" content="RSA">
 <meta property="article:tag" content="密码学">
@@ -90,7 +90,7 @@
      --><!--
        --><li><a href="/tags/">标签</a></li><!--
      --><!--
-       --><li><a target="_blank" rel="noopener" href="http://github.com/probberechts">项目</a></li><!--
+       --><li><a target="_blank" rel="noopener" href="https://github.com/xgshunliruyi">项目</a></li><!--
      -->
       </ul>
     </span>
@@ -181,13 +181,13 @@
 <span id="more"></span>
 
 <hr>
-<p><strong>描述</strong><br>独立选取两个大素数$p_1 , p_2$（各100-200位的十进制数字），计算<br>$$n&#x3D;p_1 \times p_2$$<br>欧拉函数<br>$$\phi (n)&#x3D;(p_1 - 1)(p_2 - 1)$$<br>随机选取整数$e, \ 1 \le e &lt; \phi(n), \ (e, \phi(n))&#x3D;1$<br>.<br>故$e$存在逆元满足$ed \equiv 1 \ (mod \ \phi(n))$<br>.<br>公钥$n,e$， 私钥$d$<br>.  </p>
+<p><strong>描述</strong><br>独立选取两个大素数$p_1 , p_2$（各100-200位的十进制数字），计算<br>$$n&#x3D;p_1 \times p_2$$<br>欧拉函数<br>$$\phi (n)&#x3D;(p_1 - 1)(p_2 - 1)$$<br>随机选取整数$e, \ 1 \le e &lt; \phi(n), \ (e, \phi(n))&#x3D;1$<br>故$e$存在逆元满足$ed \equiv 1 \ (mod \ \phi(n))$<br>公钥$n,e$， 私钥$d$  </p>
 <hr>
-<p><strong>加密</strong><br>$$y &#x3D; x^e \ mod \ n$$<br><strong>解密</strong><br>$$x &#x3D; y^d \ mod \ n$$<br><strong>证明</strong><br>$y^d \equiv (x^e)^d \equiv x^{de} \ (mod \ n)$<br>.<br>由于$de \equiv 1 \ (mod \ \phi(n))$<br>.<br>则$de &#x3D; t \phi(n)+1$<br>.<br>故$y^d \equiv x^{t \phi(n)+1} \ (mod \ n)$</p>
-<p>考虑第一种情况：$(x, n) &#x3D; 1$<br>.<br>根据欧拉定理有$x^{\phi(n)} \equiv 1 \ (mod \ n)$<br>.<br>即$y^d \equiv x^{t\phi(n)+1} \equiv x (mod \ n)$</p>
-<p>考虑第二种情况：$(x,n) \neq 1$<br>.<br>当$x &#x3D; 0$时，显然$y^d &#x3D; x$<br>.<br>当$x \neq 0$时，$x \in {1,2,…,n-1} &lt; n$<br>.<br>根据算术基本定理$n&#x3D;p_1 \times p_2$，且$p_1,p_2$都是素数，故$n$仅有$p_1,p_2$两个因子<br>.<br>故$p_1,p_2$其中之一是$x$的因子，但不能同时是$x$的因子，否则$x \ge n$<br>.<br>不妨设$x &#x3D; ap_1$，则$p_2 \nmid x$<br>.<br>又$p_2$是素数，则$(x, p_2) &#x3D; 1$<br>.<br>根据欧拉定理有$x^{\phi(p_2)} &#x3D; x^{p_2-1} \equiv 1 \ (mod \ p_2)$<br>.<br>故$x^{k(p_1-1)(p_2-1)} &#x3D; (x^{p_2-1})^{k(p_1-1)} \equiv 1 \ (mod \ p_2)$<br>.<br>故$x^{k \phi(n)} \equiv 1 \ (mod \ p_2)$<br>.<br>故$x^{k \phi(n)} &#x3D; rp_2+1$<br>.<br>故$x^{k \phi(n)+1} &#x3D; rp_2x+x &#x3D; rp_2ap_1 + x &#x3D; arn+x$<br>.<br>故$x^{k \phi(n)+1} \equiv x \ (mod \ n) $</p>
+<p><strong>加密</strong><br>$$y &#x3D; x^e \ mod \ n$$<br><strong>解密</strong><br>$$x &#x3D; y^d \ mod \ n$$<br><strong>证明</strong><br>$y^d \equiv (x^e)^d \equiv x^{de} \ (mod \ n)$<br>由于$de \equiv 1 \ (mod \ \phi(n))$<br>则$de &#x3D; t \phi(n)+1$<br>故$y^d \equiv x^{t \phi(n)+1} \ (mod \ n)$</p>
+<p>考虑第一种情况：$(x, n) &#x3D; 1$<br>根据欧拉定理有$x^{\phi(n)} \equiv 1 \ (mod \ n)$<br>即$y^d \equiv x^{t\phi(n)+1} \equiv x (mod \ n)$</p>
+<p>考虑第二种情况：$(x,n) \neq 1$<br>当$x &#x3D; 0$时，显然$y^d &#x3D; x$<br>当$x \neq 0$时，$x \in {1,2,…,n-1} &lt; n$<br>根据算术基本定理$n&#x3D;p_1 \times p_2$，且$p_1,p_2$都是素数，故$n$仅有$p_1,p_2$两个因子<br>故$p_1,p_2$其中之一是$x$的因子，但不能同时是$x$的因子，否则$x \ge n$<br>不妨设$x &#x3D; ap_1$，则$p_2 \nmid x$<br>又$p_2$是素数，则$(x, p_2) &#x3D; 1$<br>根据欧拉定理有$x^{\phi(p_2)} &#x3D; x^{p_2-1} \equiv 1 \ (mod \ p_2)$<br>故$x^{k(p_1-1)(p_2-1)} &#x3D; (x^{p_2-1})^{k(p_1-1)} \equiv 1 \ (mod \ p_2)$<br>故$x^{k \phi(n)} \equiv 1 \ (mod \ p_2)$<br>故$x^{k \phi(n)} &#x3D; rp_2+1$<br>故$x^{k \phi(n)+1} &#x3D; rp_2x+x &#x3D; rp_2ap_1 + x &#x3D; arn+x$<br>故$x^{k \phi(n)+1} \equiv x \ (mod \ n) $</p>
 <hr>
-<p><strong>选择密文攻击</strong><br>对于密文$y&#x3D;x^e \ mod \ n$，攻击者可以选择随机数$r &lt; n$并计算$y_1 &#x3D; r^e \ mod \ n$，意味着$r &#x3D; y_1^d \ mod \ n$<br>.<br>计算$y_2 &#x3D; y_1 \times y \ mod \ n$，攻击者请求加密方对$y_2$解密，得到$s &#x3D; y_2^d \ mod \ n$<br>.<br>计算$s \times r^{-1} \ mod \ n &#x3D; y_2^d \times y_1^{-d} \ mod \ n &#x3D;y_1^d \times y^d \times y_1^{-d} \ mod \ n &#x3D; y^d \ mod \ n &#x3D; x$得到明文<br>.<br><strong>骗取用户签名</strong><br>攻击者可以构造两条消息$x_1, x_2$，凑出所要的$x &#x3D; x_1 \times x_2 \ mod \ n$<br>.<br>首先他可以得到$x_1$和$x_2$的签名$x_1^d \ mod \ n$和$x_2^d \ mod \ n$<br>.<br>可计算$x^d \ mod \ n &#x3D; (x_1^d \ mod \ n) \times (x_2^d \ mod \ n) \ mod  \ n$<br>.<br><strong>公用模攻击</strong><br>若很多人都使用同一个$n$，各自选择不同的$e,d$，如果明文以两个不同的密钥加密，且两个密钥互素，则可以恢复出明文<br>.<br>设$e_1, e_2$是两个互素的密钥，对同一明文$x$加密得$y_1&#x3D;x^{e_1} \ mod \ n, \ y_2 &#x3D; x^{e_2} \ mod \ n$，攻击者知道$n, e_1, e_2, y_1, y_2$<br>.<br>因为$(e_1, e_2) &#x3D; 1$，根据定理存在整数$r,s$使得$re_1+se_2 &#x3D; 1$<br>.<br>故$y_1^r \times y_2^s \ mod \ n &#x3D; x^{re_1} \times x^{se_2} \ mod \ n &#x3D; x \ mod \ n$<br>.  </p>
+<p><strong>选择密文攻击</strong><br>对于密文$y&#x3D;x^e \ mod \ n$，攻击者可以选择随机数$r &lt; n$并计算$y_1 &#x3D; r^e \ mod \ n$，意味着$r &#x3D; y_1^d \ mod \ n$<br>计算$y_2 &#x3D; y_1 \times y \ mod \ n$，攻击者请求加密方对$y_2$解密，得到$s &#x3D; y_2^d \ mod \ n$<br>计算$s \times r^{-1} \ mod \ n &#x3D; y_2^d \times y_1^{-d} \ mod \ n &#x3D;y_1^d \times y^d \times y_1^{-d} \ mod \ n &#x3D; y^d \ mod \ n &#x3D; x$得到明文<br><strong>骗取用户签名</strong><br>攻击者可以构造两条消息$x_1, x_2$，凑出所要的$x &#x3D; x_1 \times x_2 \ mod \ n$<br>首先他可以得到$x_1$和$x_2$的签名$x_1^d \ mod \ n$和$x_2^d \ mod \ n$<br>可计算$x^d \ mod \ n &#x3D; (x_1^d \ mod \ n) \times (x_2^d \ mod \ n) \ mod  \ n$<br><strong>公用模攻击</strong><br>若很多人都使用同一个$n$，各自选择不同的$e,d$，如果明文以两个不同的密钥加密，且两个密钥互素，则可以恢复出明文<br>设$e_1, e_2$是两个互素的密钥，对同一明文$x$加密得$y_1&#x3D;x^{e_1} \ mod \ n, \ y_2 &#x3D; x^{e_2} \ mod \ n$，攻击者知道$n, e_1, e_2, y_1, y_2$<br>因为$(e_1, e_2) &#x3D; 1$，根据定理存在整数$r,s$使得$re_1+se_2 &#x3D; 1$<br>故$y_1^r \times y_2^s \ mod \ n &#x3D; x^{re_1} \times x^{se_2} \ mod \ n &#x3D; x \ mod \ n$  </p>
 <hr>
 <p><strong>$p_1,p_2$必须为强素数</strong><br>强素数$p$的定义如下</p>
 <ul>
@@ -195,7 +195,7 @@
 <li>存在4个大素数$r_1,s_1,r_2,s_2$，满足$r_1|(p_1-1), \ s_1|(p_1+1), \ r_2|(p_2-1), \ s_2|(p2+1)$</li>
 </ul>
 <p>否则Pollard’s p-1算法可攻破RSA密码</p>
-<p>假设我们要分解$n&#x3D;pq$，根据算数基本定理有$p-1 &#x3D; \prod_{i&#x3D;1}^t p_i^{a_i}$，$p_i$为素数，$a_i$为正整数，由于我们不知道$p$所以无法分解$p-1$<br>.<br>但我们可以找一个大小合适的$B$和$a$，使得$p_i &lt; B, \ a_i \le a$，构造$R&#x3D; \prod _{i&#x3D;1}^{s} l_i^a$，其中$l_i$是所有小于$B$的素数，所以$(p-1)|R$，并且由费马小定理$2^R \equiv 1 \ (mod \ p)$<br>.<br>令$x &#x3D; 2^R \ mod \ n$，如果$x&#x3D;1$，则选择基数3代替2，重新计算$x$直到$x \neq 1$，假设我们尝试到了基数$k$，则由以下等式<br>$$x &#x3D; k^R \ mod \ n$$<br>$$k^R \equiv 1 \ (mod \ p)$$<br>由2式可得$k^R&#x3D;mp+1$，代入1式得$x-1&#x3D;k^R-1&#x3D;(mp+1)-1&#x3D;mp \ (mod \ n)$<br>.<br>所以$x-1$是$p$的倍数，而$n&#x3D;pq$且$p,q$都是素数，根据算术基本定理$n$仅有$p,q$两个因子，所以$(x-1,n)&#x3D;p$</p>
+<p>假设我们要分解$n&#x3D;pq$，根据算数基本定理有$p-1 &#x3D; \prod_{i&#x3D;1}^t p_i^{a_i}$，$p_i$为素数，$a_i$为正整数，由于我们不知道$p$所以无法分解$p-1$<br>但我们可以找一个大小合适的$B$和$a$，使得$p_i &lt; B, \ a_i \le a$，构造$R&#x3D; \prod _{i&#x3D;1}^{s} l_i^a$，其中$l_i$是所有小于$B$的素数，所以$(p-1)|R$，并且由费马小定理$2^R \equiv 1 \ (mod \ p)$<br>令$x &#x3D; 2^R \ mod \ n$，如果$x&#x3D;1$，则选择基数3代替2，重新计算$x$直到$x \neq 1$，假设我们尝试到了基数$k$，则由以下等式<br>$$x &#x3D; k^R \ mod \ n$$<br>$$k^R \equiv 1 \ (mod \ p)$$<br>由2式可得$k^R&#x3D;mp+1$，代入1式得$x-1&#x3D;k^R-1&#x3D;(mp+1)-1&#x3D;mp \ (mod \ n)$<br>所以$x-1$是$p$的倍数，而$n&#x3D;pq$且$p,q$都是素数，根据算术基本定理$n$仅有$p,q$两个因子，所以$(x-1,n)&#x3D;p$</p>
 <p>由此可见，当$p$为强素数时，$p-1$有大素数因子，这样满足$(p-1)|R$的$R$便不容易构造，因为攻击者需要更大的$B$值才能构造出$p-1$的倍数，大多数情况下这在计算上是昂贵的</p>
 <hr>
 <p><strong>代码实现</strong>  </p>
@@ -228,7 +228,7 @@
         
           <li><a href="/tags/">标签</a></li>
         
-          <li><a target="_blank" rel="noopener" href="http://github.com/probberechts">项目</a></li>
+          <li><a target="_blank" rel="noopener" href="https://github.com/xgshunliruyi">项目</a></li>
         
       </ul>
     </div>
@@ -286,7 +286,7 @@
      --><!--
        --><li><a href="/tags/">标签</a></li><!--
      --><!--
-       --><li><a target="_blank" rel="noopener" href="http://github.com/probberechts">项目</a></li><!--
+       --><li><a target="_blank" rel="noopener" href="https://github.com/xgshunliruyi">项目</a></li><!--
      -->
       </ul>
     </nav>
