@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+    <!-- so meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+    <meta name="description" content="Vmess和Trojan、Http是一样的，是一种网络协议。而V2ray是一个网络工具，它支持Vmess协议，同时也支持ShadowSocks和Trojan、Vless等代理通讯协议。我们可以把V2ray和Vmess的关系类比成浏览器和Http的关系，把V2ray和Clash的关系类比成Chrome和Firefox的关系">
+<meta property="og:type" content="article">
+<meta property="og:title" content="基于Vmess协议搭建服务器">
+<meta property="og:url" content="https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/index.html">
+<meta property="og:site_name" content="Sliver Eagle &#39;s Blog">
+<meta property="og:description" content="Vmess和Trojan、Http是一样的，是一种网络协议。而V2ray是一个网络工具，它支持Vmess协议，同时也支持ShadowSocks和Trojan、Vless等代理通讯协议。我们可以把V2ray和Vmess的关系类比成浏览器和Http的关系，把V2ray和Clash的关系类比成Chrome和Firefox的关系">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://xgshunliruyi.github.io/img/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/yuanlitu.png">
+<meta property="og:image" content="https://xgshunliruyi.github.io/img/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/yuanlitu2.png">
+<meta property="og:image" content="https://xgshunliruyi.github.io/img/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/csxy.png">
+<meta property="og:image" content="https://xgshunliruyi.github.io/img/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/yuanlitu3.png">
+<meta property="article:published_time" content="2024-04-23T09:07:43.000Z">
+<meta property="article:modified_time" content="2024-06-20T12:19:43.870Z">
+<meta property="article:author" content="Sliver Eagle">
+<meta property="article:tag" content="Vmess">
+<meta property="article:tag" content="搭建节点">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://xgshunliruyi.github.io/img/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/yuanlitu.png">
+    
+    
+      
+        
+          <link rel="shortcut icon" href="/images/favicon.ico">
+        
+      
+      
+        
+          <link rel="icon" type="image/png" href="/images/favicon-192x192.png" sizes="192x192">
+        
+      
+      
+        
+          <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+        
+      
+    
+    <!-- title -->
+    <title>基于Vmess协议搭建服务器</title>
+    <!-- async scripts -->
+    <!-- Google Analytics -->
+
+
+    <!-- Umami Analytics -->
+
+
+    <!-- styles -->
+    
+<link rel="stylesheet" href="/css/style.css">
+
+    <!-- persian styles -->
+    
+    <!-- rss -->
+    
+    
+	<!-- mathjax -->
+	
+		<script type="text/x-mathjax-config">
+		  MathJax.Hub.Config({
+			tex2jax: {
+			  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+			  inlineMath: [['$','$']]
+			}
+		  });
+		</script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML' async></script>
+	
+<meta name="generator" content="Hexo 7.2.0"></head>
+
+<body class="max-width mx-auto px3 ltr">
+    
+      <div id="header-post">
+  <a id="menu-icon" href="#" aria-label="目录"><i class="fa-solid fa-bars fa-lg"></i></a>
+  <a id="menu-icon-tablet" href="#" aria-label="目录"><i class="fa-solid fa-bars fa-lg"></i></a>
+  <a id="top-icon-tablet" href="#" aria-label="顶部" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');" style="display:none;"><i class="fa-solid fa-chevron-up fa-lg"></i></a>
+  <span id="menu">
+    <span id="nav">
+      <ul>
+        <!--
+       --><li><a href="/">首页</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/archives/">归档</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/tags/">标签</a></li><!--
+     --><!--
+       --><li><a target="_blank" rel="noopener" href="http://github.com/probberechts">项目</a></li><!--
+     -->
+      </ul>
+    </span>
+    <br/>
+    <span id="actions">
+      <ul>
+        
+        <li><a class="icon" aria-label="上一篇" href="/2024/04/25/%E8%BF%91%E4%B8%96%E4%BB%A3%E6%95%B0-%E4%B8%80/"><i class="fa-solid fa-chevron-left" aria-hidden="true" onmouseover="$('#i-prev').toggle();" onmouseout="$('#i-prev').toggle();"></i></a></li>
+        
+        
+        <li><a class="icon" aria-label="下一篇" href="/2024/04/22/Mark-Knopfler/"><i class="fa-solid fa-chevron-right" aria-hidden="true" onmouseover="$('#i-next').toggle();" onmouseout="$('#i-next').toggle();"></i></a></li>
+        
+        <li><a class="icon" aria-label="返回顶部" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fa-solid fa-chevron-up" aria-hidden="true" onmouseover="$('#i-top').toggle();" onmouseout="$('#i-top').toggle();"></i></a></li>
+        <li><a class="icon" aria-label="分享文章" href="#"><i class="fa-solid fa-share-alt" aria-hidden="true" onmouseover="$('#i-share').toggle();" onmouseout="$('#i-share').toggle();" onclick="$('#share').toggle();return false;"></i></a></li>
+      </ul>
+      <span id="i-prev" class="info" style="display:none;">上一篇</span>
+      <span id="i-next" class="info" style="display:none;">下一篇</span>
+      <span id="i-top" class="info" style="display:none;">返回顶部</span>
+      <span id="i-share" class="info" style="display:none;">分享文章</span>
+    </span>
+    <br/>
+    <div id="share" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/"><i class="fab fa-facebook " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&text=基于Vmess协议搭建服务器"><i class="fab fa-twitter " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&title=基于Vmess协议搭建服务器"><i class="fab fa-linkedin " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&is_video=false&description=基于Vmess协议搭建服务器"><i class="fab fa-pinterest " aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=基于Vmess协议搭建服务器&body=Check out this article: https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/"><i class="fa-solid fa-envelope " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&title=基于Vmess协议搭建服务器"><i class="fab fa-get-pocket " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&title=基于Vmess协议搭建服务器"><i class="fab fa-reddit " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&title=基于Vmess协议搭建服务器"><i class="fab fa-stumbleupon " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&title=基于Vmess协议搭建服务器"><i class="fab fa-digg " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&name=基于Vmess协议搭建服务器&description=&lt;p&gt;Vmess和Trojan、Http是一样的，是一种网络协议。而V2ray是一个网络工具，它支持Vmess协议，同时也支持ShadowSocks和Trojan、Vless等代理通讯协议。我们可以把V2ray和Vmess的关系类比成浏览器和Http的关系，把V2ray和Clash的关系类比成Chrome和Firefox的关系&lt;/p&gt;"><i class="fab fa-tumblr " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&t=基于Vmess协议搭建服务器"><i class="fab fa-hacker-news " aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+    
+    
+      <div id="toc">
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Vmess%E5%8D%8F%E8%AE%AE%E6%A6%82%E8%BF%B0"><span class="toc-number">1.</span> <span class="toc-text">Vmess协议概述</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%A2%9D%E5%A4%96ID%E4%B8%8E%E7%B2%BE%E5%87%86%E6%8E%A2%E6%B5%8B"><span class="toc-number">2.</span> <span class="toc-text">额外ID与精准探测</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%90%AD%E5%BB%BAVmess-tcp"><span class="toc-number">3.</span> <span class="toc-text">搭建Vmess+tcp</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%89%8D%E7%BD%AE%E6%9D%A1%E4%BB%B6%EF%BC%9A"><span class="toc-number">3.1.</span> <span class="toc-text">前置条件：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#V2ray%E4%B8%80%E9%94%AE%E5%AE%89%E8%A3%85%E8%84%9A%E6%9C%AC"><span class="toc-number">3.2.</span> <span class="toc-text">V2ray一键安装脚本</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%9F%A5%E7%9C%8BV2ray%E7%8A%B6%E6%80%81"><span class="toc-number">3.3.</span> <span class="toc-text">查看V2ray状态</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%90%AF%E5%8A%A8v2ray%E6%9C%8D%E5%8A%A1"><span class="toc-number">3.4.</span> <span class="toc-text">启动v2ray服务</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E6%9C%8D%E5%8A%A1%E5%99%A8v2ray"><span class="toc-number">3.5.</span> <span class="toc-text">配置服务器v2ray</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%87%8D%E5%90%AFv2ray%E6%9C%8D%E5%8A%A1"><span class="toc-number">3.6.</span> <span class="toc-text">重启v2ray服务</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%89%93%E5%BC%80%E9%98%B2%E7%81%AB%E5%A2%99%E7%9A%848388%E7%AB%AF%E5%8F%A3"><span class="toc-number">3.7.</span> <span class="toc-text">打开防火墙的8388端口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E5%AE%A2%E6%88%B7%E7%AB%AFv2ray"><span class="toc-number">3.8.</span> <span class="toc-text">配置客户端v2ray</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BC%AA%E8%A3%85%E4%B8%8E%E4%BC%98%E5%8C%96"><span class="toc-number">4.</span> <span class="toc-text">伪装与优化</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%B0%E6%8D%AE%E7%9A%84%E6%89%BF%E8%BD%BD%E5%85%B3%E7%B3%BB"><span class="toc-number">4.1.</span> <span class="toc-text">数据的承载关系</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%90%AD%E5%BB%BAVmess-tcp-ws-tls"><span class="toc-number">5.</span> <span class="toc-text">搭建Vmess+tcp(ws)+tls</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%94%B3%E8%AF%B7%E8%AF%81%E4%B9%A6"><span class="toc-number">5.1.</span> <span class="toc-text">申请证书</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#DNS%E8%A7%A3%E6%9E%90"><span class="toc-number">5.2.</span> <span class="toc-text">DNS解析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BF%AE%E6%94%B9%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6"><span class="toc-number">5.3.</span> <span class="toc-text">修改配置文件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BF%AE%E6%94%B9%E6%9D%83%E9%99%90"><span class="toc-number">5.4.</span> <span class="toc-text">修改权限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%87%8D%E6%96%B0%E5%8A%A0%E8%BD%BD%E5%B9%B6%E5%90%AF%E5%8A%A8"><span class="toc-number">5.5.</span> <span class="toc-text">重新加载并启动</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%9B%B4%E6%94%B9%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%85%8D%E7%BD%AE"><span class="toc-number">5.6.</span> <span class="toc-text">更改客户端配置</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9B%B4%E5%BC%BA%E7%9A%84%E4%BC%AA%E8%A3%85%E4%B9%8BNginx"><span class="toc-number">6.</span> <span class="toc-text">更强的伪装之Nginx</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%90%AD%E5%BB%BA%E4%BC%AA%E8%A3%85%E7%AB%99%E7%82%B9"><span class="toc-number">6.1.</span> <span class="toc-text">搭建伪装站点</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%90%AD%E5%BB%BAVmess-ws-tls-Nginx"><span class="toc-number">7.</span> <span class="toc-text">搭建Vmess+ws+tls+Nginx</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#nginx"><span class="toc-number">7.1.</span> <span class="toc-text">nginx</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AEnginx"><span class="toc-number">7.2.</span> <span class="toc-text">配置nginx</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%87%8D%E6%96%B0%E5%8A%A0%E8%BD%BDnginx"><span class="toc-number">7.3.</span> <span class="toc-text">重新加载nginx</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BF%AE%E6%94%B9v2ray%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6"><span class="toc-number">7.4.</span> <span class="toc-text">修改v2ray配置文件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%87%8D%E5%90%AFv2ray"><span class="toc-number">7.5.</span> <span class="toc-text">重启v2ray</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BF%AE%E6%94%B9%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%85%8D%E7%BD%AE"><span class="toc-number">7.6.</span> <span class="toc-text">修改客户端配置</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">8.</span> <span class="toc-text">总结</span></a></li></ol>
+      </div>
+    
+  </span>
+</div>
+
+    
+    <div class="content index py4 ">
+        
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header>
+    
+    <h1 class="posttitle p-name" itemprop="name headline">
+        基于Vmess协议搭建服务器
+    </h1>
+
+
+
+    <div class="meta">
+      <span class="author p-author h-card" itemprop="author" itemscope itemtype="http://schema.org/Person">
+        <span class="p-name" itemprop="name">Sliver Eagle</span>
+      </span>
+      
+    <div class="postdate">
+      
+        <time datetime="2024-04-23T09:07:43.000Z" class="dt-published" itemprop="datePublished">2024-04-23</time>
+        
+      
+    </div>
+
+
+      
+    <div class="article-category">
+        <i class="fa-solid fa-archive"></i>
+        <a class="category-link" href="/categories/%E6%90%AD%E5%BB%BA%E4%BB%A3%E7%90%86%E6%9C%8D%E5%8A%A1%E5%99%A8/">搭建代理服务器</a>
+    </div>
+
+
+      
+    <div class="article-tag">
+        <i class="fa-solid fa-tag"></i>
+        <a class="p-category" href="/tags/Vmess/" rel="tag">Vmess</a>, <a class="p-category" href="/tags/%E6%90%AD%E5%BB%BA%E8%8A%82%E7%82%B9/" rel="tag">搭建节点</a>
+    </div>
+
+
+    </div>
+  </header>
+  
+
+  <div class="content e-content" itemprop="articleBody">
+    <p>Vmess和Trojan、Http是一样的，是一种网络协议。而V2ray是一个网络工具，它支持Vmess协议，同时也支持ShadowSocks和Trojan、Vless等代理通讯协议。我们可以把V2ray和Vmess的关系类比成浏览器和Http的关系，把V2ray和Clash的关系类比成Chrome和Firefox的关系</p>
+<span id="more"></span>
+<h2 id="Vmess协议概述"><a href="#Vmess协议概述" class="headerlink" title="Vmess协议概述"></a>Vmess协议概述</h2><p><img src="/img/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/yuanlitu.png"><br>如上图所示，当客户端V2ray监听到浏览器发出的数据后，V2ray会根据配置信息将数据封装成Vmess数据包，大致的封装过程如下：</p>
+<ol>
+<li>根据配置中的加密方式（默认为aes），生成一个随机密钥，将原始数据加密</li>
+<li>为加密后的数据生成一个首部，将加密方式与密钥写入首部（当然还有一些其他用于Vmess的参数信息）</li>
+<li>使用用户ID作为密钥，对<code>2</code>中的首部加密，加密方式由客户端与服务器协商</li>
+<li>为当前数据包再生成一个首部，该首部中包含一个Hash值，且Hash&#x3D;HMAC(H,K,M)，其中H&#x3D;MD5,K&#x3D;用户ID,M&#x3D;系统UTC时间±30s的随机值<blockquote>
+<p>UTC时间即时间戳（一个数字），由当前时间计算得到，与时区无关</p>
+</blockquote>
+</li>
+<li>最后将以上数据包封装为IP数据包</li>
+</ol>
+<p>我们略去数据的传输过程，当IP数据包到达服务器后，服务器的拆包过程如下：</p>
+<ol>
+<li>服务器验证<code>4</code>中的Hash值，即取系统时间戳与用户ID，在±120s之内验证</li>
+<li>解密<code>3</code>中的首部，得到<code>2</code>中的加密方式与密钥</li>
+<li>解密最终的原始数据</li>
+</ol>
+<blockquote>
+<p>由上述过程可以直到，若客户端与服务器的系统时间相差超过90s，会导致Hash验证失败</p>
+</blockquote>
+<h2 id="额外ID与精准探测"><a href="#额外ID与精准探测" class="headerlink" title="额外ID与精准探测"></a>额外ID与精准探测</h2><p>额外ID字段的本意是为了进一步防止被探测，一个用户可以在主ID的基础上，在额外生成多个ID，客户端的额外ID必须小于等于服务端的额外ID<br>可是目前已经发现Vmess协议的漏洞，由于其中数据加密不使用AEAD，防火墙可以修改一些加密数据并对服务器实施重放攻击，这种被篡改后的数据包到达服务器后会产生一些不正常行为，防火墙基于这些行为就可以判断出服务器里运行了Vmess协议。据说仅需16次探测即可断定Vmess服务，误报率几乎为0<br>上述问题的解决方式就是引入AEAD加密，这种情况下服务器可以识别出对数据包的篡改，并直接丢弃这种数据包，同时上述Hash值首部的MD5认证也被改成了其他数据，这样我们如果使用AEAD，就不能使用MD5认证了，所以把额外ID修改为0，则表示我们使用AEAD，否则，如果不是0，则表示我们还使用原来的MD5认证(已被彻底淘汰)</p>
+<h2 id="搭建Vmess-tcp"><a href="#搭建Vmess-tcp" class="headerlink" title="搭建Vmess+tcp"></a>搭建Vmess+tcp</h2><h3 id="前置条件："><a href="#前置条件：" class="headerlink" title="前置条件："></a>前置条件：</h3><ul>
+<li>VPS服务器</li>
+<li>Ubuntu操作系统</li>
+</ul>
+<h3 id="V2ray一键安装脚本"><a href="#V2ray一键安装脚本" class="headerlink" title="V2ray一键安装脚本"></a>V2ray一键安装脚本</h3><p><a target="_blank" rel="noopener" href="https://github.com/V2fly/fhs-install-v2ray">https://github.com/V2fly/fhs-install-v2ray</a></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># bash &lt;(curl -L https://raw.githubusercontent.com/v2fly/fhs-install-v2ray/master/install-release.sh)</span><br></pre></td></tr></table></figure>
+<h3 id="查看V2ray状态"><a href="#查看V2ray状态" class="headerlink" title="查看V2ray状态"></a>查看V2ray状态</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># systemctl status v2ray.service</span><br></pre></td></tr></table></figure>
+<h3 id="启动v2ray服务"><a href="#启动v2ray服务" class="headerlink" title="启动v2ray服务"></a>启动v2ray服务</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># systemctl start v2ray.service</span><br></pre></td></tr></table></figure>
+<h3 id="配置服务器v2ray"><a href="#配置服务器v2ray" class="headerlink" title="配置服务器v2ray"></a>配置服务器v2ray</h3><p>打开<code>/usr/local/etc/v2ray/config.json</code>文件，写入服务器配置信息</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;inbounds&quot;:[</span><br><span class="line">        &#123;</span><br><span class="line">            &quot;port&quot;:8388,</span><br><span class="line">            &quot;protocol&quot;:&quot;vmess&quot;,</span><br><span class="line">            &quot;settings&quot;:&#123;</span><br><span class="line">                &quot;clients&quot;:[</span><br><span class="line">                    &#123;</span><br><span class="line">                        &quot;id&quot;:&quot;af41686b-cb85-494a-a554-eeaa1514bca7&quot;,</span><br><span class="line">                        &quot;alterId&quot;:0</span><br><span class="line">                    &#125;</span><br><span class="line">                ]</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    ],</span><br><span class="line">    &quot;outbounds&quot;:[</span><br><span class="line">        &#123;</span><br><span class="line">            &quot;protocol&quot;:&quot;freedom&quot;,</span><br><span class="line">            &quot;settings&quot;:&#123;&#125;</span><br><span class="line">        &#125;</span><br><span class="line">    ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="重启v2ray服务"><a href="#重启v2ray服务" class="headerlink" title="重启v2ray服务"></a>重启v2ray服务</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># systemctl restart v2ray.service</span><br></pre></td></tr></table></figure>
+<h3 id="打开防火墙的8388端口"><a href="#打开防火墙的8388端口" class="headerlink" title="打开防火墙的8388端口"></a>打开防火墙的8388端口</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># ufw status</span><br><span class="line"># ufw allow 8388</span><br><span class="line">或者直接关闭防火墙</span><br><span class="line"># ufw disable</span><br></pre></td></tr></table></figure>
+<h3 id="配置客户端v2ray"><a href="#配置客户端v2ray" class="headerlink" title="配置客户端v2ray"></a>配置客户端v2ray</h3><p>这里根据服务器的配置填写即可</p>
+<h2 id="伪装与优化"><a href="#伪装与优化" class="headerlink" title="伪装与优化"></a>伪装与优化</h2><p>截至到目前，一个裸奔的Vmess+TCP的服务器就搭建完成了，但是我们还需要进一步的伪装以及提高性能<br><img src="/img/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/yuanlitu2.png"><br>注意到上述加密方式为zero，这是因为在Vmess概述中讲到的数据封装过程，最终我们得到的数据包会再次被TLS加密并封装，所以我们省去对原始数据的加密，提高性能。注意Vmess的协议头还是要加密的，在任何时候都需要加密，密钥为用户ID</p>
+<h3 id="数据的承载关系"><a href="#数据的承载关系" class="headerlink" title="数据的承载关系"></a>数据的承载关系</h3><p>数据的承载关系比较复杂，这里只进行大致介绍：<br>传输层仅有两个协议，即Tcp和Udp，如上图中所示，选择传输协议为Tcp，数据的承载关系为：Vmess-&gt;tls-&gt;tcp，而ws是基于Tcp的，如果选择ws作为传输协议，则数据的承载关系变为：Vmess-&gt;ws-&gt;tls-&gt;tcp<br>在V2ray的配置中，传输协议有很多种：<br><img src="/img/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/csxy.png"><br>它们要么是基于Tcp的，要么是基于Udp的，不同的传输协议具有不同的特性，适用于不同的网络环境，有兴趣可以搜索具体的资料，一般我们搭建服务器最常用的是tcp和ws<br>上图中的伪装类型也是v2ray提供的一种服务，仅有none和http两种选择，它会为Vmess一些封装一个Http首部，使它看起来更像一个Http数据</p>
+<h2 id="搭建Vmess-tcp-ws-tls"><a href="#搭建Vmess-tcp-ws-tls" class="headerlink" title="搭建Vmess+tcp(ws)+tls"></a>搭建Vmess+tcp(ws)+tls</h2><h3 id="申请证书"><a href="#申请证书" class="headerlink" title="申请证书"></a>申请证书</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">安装acme：curl https://get.acme.sh | sh</span><br><span class="line">安装socat：apt install socat</span><br><span class="line">添加软链接：ln -s  /root/.acme.sh/acme.sh /usr/local/bin/acme.sh</span><br><span class="line">注册账号：acme.sh --register-account -m my@example.com</span><br><span class="line">开放80端口：ufw allow 80</span><br><span class="line">切换CA机构：acme.sh --set-default-ca --server letsencrypt</span><br><span class="line">申请证书： acme.sh --issue -d 你的域名 --standalone -k ec-256</span><br><span class="line">安装证书： acme.sh --installcert -d 你的域名 --ecc --key-file /usr/local/etc/v2ray/server.key --fullchain-file /usr/local/etc/v2ray/server.crt </span><br></pre></td></tr></table></figure>
+<h3 id="DNS解析"><a href="#DNS解析" class="headerlink" title="DNS解析"></a>DNS解析</h3><p>在域名提供商（如namesail）处做DNS解析</p>
+<h3 id="修改配置文件"><a href="#修改配置文件" class="headerlink" title="修改配置文件"></a>修改配置文件</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;inbounds&quot;:[</span><br><span class="line">        &#123;</span><br><span class="line">            &quot;port&quot;:8388,</span><br><span class="line">            &quot;protocol&quot;:&quot;vmess&quot;,</span><br><span class="line">            &quot;settings&quot;:&#123;</span><br><span class="line">                &quot;clients&quot;:[</span><br><span class="line">                    &#123;</span><br><span class="line">                        &quot;id&quot;:&quot;af41686b-cb85-494a-a554-eeaa1514bca7&quot;,</span><br><span class="line">                        &quot;alterId&quot;:0</span><br><span class="line">                    &#125;</span><br><span class="line">                ]</span><br><span class="line">            &#125;,</span><br><span class="line">            &quot;streamSettings&quot;:&#123;</span><br><span class="line">                &quot;network&quot;:&quot;tcp&quot;,</span><br><span class="line">                &quot;security&quot;:&quot;tls&quot;,</span><br><span class="line">                &quot;tlsSettings&quot;:&#123;</span><br><span class="line">                    &quot;certificates&quot;:[</span><br><span class="line">                        &#123;</span><br><span class="line">                            &quot;certificateFile&quot;:&quot;/usr/local/etc/v2ray/server.crt&quot;,</span><br><span class="line">                            &quot;keyFile&quot;:&quot;/usr/local/etc/v2ray/server.key&quot;</span><br><span class="line">                        &#125;</span><br><span class="line">                    ]</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    ],</span><br><span class="line">    &quot;outbounds&quot;:[</span><br><span class="line">        &#123;</span><br><span class="line">            &quot;protocol&quot;:&quot;freedom&quot;,</span><br><span class="line">            &quot;settings&quot;:&#123;&#125;</span><br><span class="line">        &#125;</span><br><span class="line">    ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="修改权限"><a href="#修改权限" class="headerlink" title="修改权限"></a>修改权限</h3><p>此时直接运行v2ray服务会报错，打开<code>/etc/systemd/system/v2ray.service</code>，删除一行<code>User=nobody</code></p>
+<h3 id="重新加载并启动"><a href="#重新加载并启动" class="headerlink" title="重新加载并启动"></a>重新加载并启动</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># systemctl daemon-reload</span><br><span class="line"># systemctl restart v2ray.service</span><br><span class="line"># systemctl status v2ray.service</span><br></pre></td></tr></table></figure>
+<h3 id="更改客户端配置"><a href="#更改客户端配置" class="headerlink" title="更改客户端配置"></a>更改客户端配置</h3><p>将客户端v2ray的服务器地址改为域名，加密方式改为zero，并选择传输层安全tls即可。<br>如果要使用ws作为传输层协议，则还需要再服务器配置文件中修改为<code>&quot;network&quot;:&quot;ws&quot;</code></p>
+<h2 id="更强的伪装之Nginx"><a href="#更强的伪装之Nginx" class="headerlink" title="更强的伪装之Nginx"></a>更强的伪装之Nginx</h2><p>上述的Vmess+tcp&#x2F;ws+tls仍然具有一定的缺陷，如果我们直接使用https访问域名的8388端口，则服务器会返回一个错误BadRequest，这是因为8388端口的Vmess只是转发请求的VPN服务，本身不提供Web服务，这种错误可能会被防火墙探测到，进而识别出服务器的Vmess服务</p>
+<h3 id="搭建伪装站点"><a href="#搭建伪装站点" class="headerlink" title="搭建伪装站点"></a>搭建伪装站点</h3><p><img src="/img/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/yuanlitu3.png"><br>此时我们的传输层协议必须使用ws，Nginx可以解析ws数据，并根据ws首部的路径字段转发至V2ray服务处理。若防火墙进行探测：<code>Get /index.html-&gt;tls-&gt;tcp</code>，则Nginx发现它不是ws数据，则不会把它转发到V2ray，而是自己处理并返回index.html。这也解释了为什么我们不能使用tcp而必须使用ws</p>
+<h2 id="搭建Vmess-ws-tls-Nginx"><a href="#搭建Vmess-ws-tls-Nginx" class="headerlink" title="搭建Vmess+ws+tls+Nginx"></a>搭建Vmess+ws+tls+Nginx</h2><h3 id="nginx"><a href="#nginx" class="headerlink" title="nginx"></a>nginx</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">apt install nginx</span><br></pre></td></tr></table></figure>
+<h3 id="配置nginx"><a href="#配置nginx" class="headerlink" title="配置nginx"></a>配置nginx</h3><p>位置在<code>/etc/nginx/nginx.conf</code></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line">http &#123;</span><br><span class="line">    server &#123;</span><br><span class="line">        listen 443 ssl;</span><br><span class="line">        listen [::]:443 ssl;</span><br><span class="line"></span><br><span class="line">        server_name 你的域名;</span><br><span class="line">        ssl_certificate /usr/local/etc/v2ray/server.crt;</span><br><span class="line">        ssl_certificate_key /usr/local/etc/v2ray/server.key;</span><br><span class="line">        ssl_session_timeout 1d;</span><br><span class="line">        ssl_session_cache shared:MozSSL:10m;</span><br><span class="line">        ssl_session_tickets off;</span><br><span class="line">        ssl_protocols TLSv1.2 TLSv1.3;</span><br><span class="line">        ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305: DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;</span><br><span class="line">        ssl_prefer_server_ciphers off;</span><br><span class="line"></span><br><span class="line">        location / &#123;</span><br><span class="line">            proxy_pass https://bing.com;</span><br><span class="line">            proxy_redirect off;</span><br><span class="line">            sub_filter_once off;</span><br><span class="line">            sub_filter &quot;www.bing.com&quot; $server_name; </span><br><span class="line">            proxy_set_header Host &quot;www.bing.com&quot;;</span><br><span class="line">            proxy_set_header Referer $http_referer;</span><br><span class="line">            proxy_set_header X-Real-IP $remote_addr;</span><br><span class="line">            proxy_set_header User-Agent $http_user_agent;</span><br><span class="line">            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;</span><br><span class="line">            proxy_set_header X-Forwarded-Proto https;</span><br><span class="line">            proxy_set_header Accept-Encoding &quot;&quot;;</span><br><span class="line">            proxy_set_header Accept-Language &quot;zh-CN&quot;;</span><br><span class="line">        &#125;</span><br><span class="line">        location /ray &#123;</span><br><span class="line">            proxy_redirect off;</span><br><span class="line">            proxy_pass http://127.0.0.1:8388;</span><br><span class="line">            proxy_http_version 1.1;</span><br><span class="line">            proxy_set_header Upgrade $http_upgrade;</span><br><span class="line">            proxy_set_header Connection &quot;upgrade&quot;;</span><br><span class="line">            proxy_set_header Host $host;</span><br><span class="line">            proxy_set_header X-Real-IP $remote_addr;</span><br><span class="line">            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    server &#123;</span><br><span class="line">        listen 80;</span><br><span class="line">        server_name 你的域名;</span><br><span class="line">        rewrite ^(.*)$ https://$&#123;server_name&#125;$1 permanent;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="重新加载nginx"><a href="#重新加载nginx" class="headerlink" title="重新加载nginx"></a>重新加载nginx</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># systemctl reload nginx.service</span><br><span class="line"># systemctl status nginx.service</span><br></pre></td></tr></table></figure>
+<h3 id="修改v2ray配置文件"><a href="#修改v2ray配置文件" class="headerlink" title="修改v2ray配置文件"></a>修改v2ray配置文件</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;inbounds&quot;:[</span><br><span class="line">        &#123;</span><br><span class="line">            &quot;port&quot;:8388,</span><br><span class="line">            &quot;listen&quot;:&quot;127.0.0.1&quot;,</span><br><span class="line">            &quot;protocol&quot;:&quot;vmess&quot;,</span><br><span class="line">            &quot;settings&quot;:&#123;</span><br><span class="line">                &quot;clients&quot;:[</span><br><span class="line">                    &#123;</span><br><span class="line">                        &quot;id&quot;:&quot;af41686b-cb85-494a-a554-eeaa1514bca7&quot;,</span><br><span class="line">                        &quot;alterId&quot;:0</span><br><span class="line">                    &#125;</span><br><span class="line">                ]</span><br><span class="line">            &#125;,</span><br><span class="line">            &quot;streamSettings&quot;:&#123;</span><br><span class="line">                &quot;network&quot;:&quot;ws&quot;,</span><br><span class="line">                &quot;wsSettings&quot;:&#123;</span><br><span class="line">                    &quot;path&quot;:&quot;/ray&quot;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    ],</span><br><span class="line">    &quot;outbounds&quot;:[</span><br><span class="line">        &#123;</span><br><span class="line">            &quot;protocol&quot;:&quot;freedom&quot;,</span><br><span class="line">            &quot;settings&quot;:&#123;&#125;</span><br><span class="line">        &#125;</span><br><span class="line">    ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="重启v2ray"><a href="#重启v2ray" class="headerlink" title="重启v2ray"></a>重启v2ray</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># systemctl restart v2ray.service</span><br></pre></td></tr></table></figure>
+<h3 id="修改客户端配置"><a href="#修改客户端配置" class="headerlink" title="修改客户端配置"></a>修改客户端配置</h3><p>将端口改为443，路径改为<code>/ray</code>即可（注意服务器防火墙不要屏蔽443端口）</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>如果仅仅使用Vmess+tcp的方式，容易被防火墙探测，为了使协议更加稳定，我们就需要使用tls，tls在最终是会对数据进行加密的，所以Vmess的首部就没必要加密，但Vmess协议又规定了必须对首部加密，这就造成了它的性能不如Trojan和Vless，算是Vmess天生的缺陷吧</p>
+
+  </div>
+</article>
+
+
+    <div class="blog-post-comments">
+        <div id="utterances_thread">
+            <noscript>加载评论需要在浏览器启用 JavaScript 脚本支持。</noscript>
+        </div>
+    </div>
+
+
+        
+          <div id="footer-post-container">
+  <div id="footer-post">
+
+    <div id="nav-footer" style="display: none">
+      <ul>
+        
+          <li><a href="/">首页</a></li>
+        
+          <li><a href="/about/">关于</a></li>
+        
+          <li><a href="/archives/">归档</a></li>
+        
+          <li><a href="/categories/">分类</a></li>
+        
+          <li><a href="/tags/">标签</a></li>
+        
+          <li><a target="_blank" rel="noopener" href="http://github.com/probberechts">项目</a></li>
+        
+      </ul>
+    </div>
+
+    
+    
+      <div id="toc-footer" style="display: none">
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Vmess%E5%8D%8F%E8%AE%AE%E6%A6%82%E8%BF%B0"><span class="toc-number">1.</span> <span class="toc-text">Vmess协议概述</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%A2%9D%E5%A4%96ID%E4%B8%8E%E7%B2%BE%E5%87%86%E6%8E%A2%E6%B5%8B"><span class="toc-number">2.</span> <span class="toc-text">额外ID与精准探测</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%90%AD%E5%BB%BAVmess-tcp"><span class="toc-number">3.</span> <span class="toc-text">搭建Vmess+tcp</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%89%8D%E7%BD%AE%E6%9D%A1%E4%BB%B6%EF%BC%9A"><span class="toc-number">3.1.</span> <span class="toc-text">前置条件：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#V2ray%E4%B8%80%E9%94%AE%E5%AE%89%E8%A3%85%E8%84%9A%E6%9C%AC"><span class="toc-number">3.2.</span> <span class="toc-text">V2ray一键安装脚本</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%9F%A5%E7%9C%8BV2ray%E7%8A%B6%E6%80%81"><span class="toc-number">3.3.</span> <span class="toc-text">查看V2ray状态</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%90%AF%E5%8A%A8v2ray%E6%9C%8D%E5%8A%A1"><span class="toc-number">3.4.</span> <span class="toc-text">启动v2ray服务</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E6%9C%8D%E5%8A%A1%E5%99%A8v2ray"><span class="toc-number">3.5.</span> <span class="toc-text">配置服务器v2ray</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%87%8D%E5%90%AFv2ray%E6%9C%8D%E5%8A%A1"><span class="toc-number">3.6.</span> <span class="toc-text">重启v2ray服务</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%89%93%E5%BC%80%E9%98%B2%E7%81%AB%E5%A2%99%E7%9A%848388%E7%AB%AF%E5%8F%A3"><span class="toc-number">3.7.</span> <span class="toc-text">打开防火墙的8388端口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E5%AE%A2%E6%88%B7%E7%AB%AFv2ray"><span class="toc-number">3.8.</span> <span class="toc-text">配置客户端v2ray</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BC%AA%E8%A3%85%E4%B8%8E%E4%BC%98%E5%8C%96"><span class="toc-number">4.</span> <span class="toc-text">伪装与优化</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%B0%E6%8D%AE%E7%9A%84%E6%89%BF%E8%BD%BD%E5%85%B3%E7%B3%BB"><span class="toc-number">4.1.</span> <span class="toc-text">数据的承载关系</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%90%AD%E5%BB%BAVmess-tcp-ws-tls"><span class="toc-number">5.</span> <span class="toc-text">搭建Vmess+tcp(ws)+tls</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%94%B3%E8%AF%B7%E8%AF%81%E4%B9%A6"><span class="toc-number">5.1.</span> <span class="toc-text">申请证书</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#DNS%E8%A7%A3%E6%9E%90"><span class="toc-number">5.2.</span> <span class="toc-text">DNS解析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BF%AE%E6%94%B9%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6"><span class="toc-number">5.3.</span> <span class="toc-text">修改配置文件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BF%AE%E6%94%B9%E6%9D%83%E9%99%90"><span class="toc-number">5.4.</span> <span class="toc-text">修改权限</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%87%8D%E6%96%B0%E5%8A%A0%E8%BD%BD%E5%B9%B6%E5%90%AF%E5%8A%A8"><span class="toc-number">5.5.</span> <span class="toc-text">重新加载并启动</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%9B%B4%E6%94%B9%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%85%8D%E7%BD%AE"><span class="toc-number">5.6.</span> <span class="toc-text">更改客户端配置</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9B%B4%E5%BC%BA%E7%9A%84%E4%BC%AA%E8%A3%85%E4%B9%8BNginx"><span class="toc-number">6.</span> <span class="toc-text">更强的伪装之Nginx</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%90%AD%E5%BB%BA%E4%BC%AA%E8%A3%85%E7%AB%99%E7%82%B9"><span class="toc-number">6.1.</span> <span class="toc-text">搭建伪装站点</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%90%AD%E5%BB%BAVmess-ws-tls-Nginx"><span class="toc-number">7.</span> <span class="toc-text">搭建Vmess+ws+tls+Nginx</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#nginx"><span class="toc-number">7.1.</span> <span class="toc-text">nginx</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AEnginx"><span class="toc-number">7.2.</span> <span class="toc-text">配置nginx</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%87%8D%E6%96%B0%E5%8A%A0%E8%BD%BDnginx"><span class="toc-number">7.3.</span> <span class="toc-text">重新加载nginx</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BF%AE%E6%94%B9v2ray%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6"><span class="toc-number">7.4.</span> <span class="toc-text">修改v2ray配置文件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%87%8D%E5%90%AFv2ray"><span class="toc-number">7.5.</span> <span class="toc-text">重启v2ray</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BF%AE%E6%94%B9%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%85%8D%E7%BD%AE"><span class="toc-number">7.6.</span> <span class="toc-text">修改客户端配置</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">8.</span> <span class="toc-text">总结</span></a></li></ol>
+      </div>
+    
+
+    <div id="share-footer" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/"><i class="fab fa-facebook fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&text=基于Vmess协议搭建服务器"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&title=基于Vmess协议搭建服务器"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&is_video=false&description=基于Vmess协议搭建服务器"><i class="fab fa-pinterest fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=基于Vmess协议搭建服务器&body=Check out this article: https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/"><i class="fa-solid fa-envelope fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&title=基于Vmess协议搭建服务器"><i class="fab fa-get-pocket fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&title=基于Vmess协议搭建服务器"><i class="fab fa-reddit fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&title=基于Vmess协议搭建服务器"><i class="fab fa-stumbleupon fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&title=基于Vmess协议搭建服务器"><i class="fab fa-digg fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&name=基于Vmess协议搭建服务器&description=&lt;p&gt;Vmess和Trojan、Http是一样的，是一种网络协议。而V2ray是一个网络工具，它支持Vmess协议，同时也支持ShadowSocks和Trojan、Vless等代理通讯协议。我们可以把V2ray和Vmess的关系类比成浏览器和Http的关系，把V2ray和Clash的关系类比成Chrome和Firefox的关系&lt;/p&gt;"><i class="fab fa-tumblr fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=https://xgshunliruyi.github.io/2024/04/23/%E6%90%AD%E5%BB%BAVmess%E8%8A%82%E7%82%B9/&t=基于Vmess协议搭建服务器"><i class="fab fa-hacker-news fa-lg" aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+
+    <div id="actions-footer">
+        <a id="menu" class="icon" href="#" onclick="$('#nav-footer').toggle();return false;"><i class="fa-solid fa-bars fa-lg" aria-hidden="true"></i> 菜单</a>
+        
+          <a id="toc" class="icon" href="#" onclick="$('#toc-footer').toggle();return false;"><i class="fa-solid fa-list fa-lg" aria-hidden="true"></i> 目录</a>
+        
+        <a id="share" class="icon" href="#" onclick="$('#share-footer').toggle();return false;"><i class="fa-solid fa-share-alt fa-lg" aria-hidden="true"></i> 分享</a>
+        <a id="top" style="display:none" class="icon" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fa-solid fa-chevron-up fa-lg" aria-hidden="true"></i> 返回顶部</a>
+    </div>
+
+  </div>
+</div>
+
+        
+        <footer id="footer">
+  <div class="footer-left">
+    Copyright &copy;
+    
+    
+    2024
+    Sliver Eagle
+  </div>
+  <div class="footer-right">
+    <nav>
+      <ul>
+        <!--
+       --><li><a href="/">首页</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/archives/">归档</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/tags/">标签</a></li><!--
+     --><!--
+       --><li><a target="_blank" rel="noopener" href="http://github.com/probberechts">项目</a></li><!--
+     -->
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+    </div>
+    <!-- styles -->
+
+
+
+  <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
+
+
+    <!-- jquery -->
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" crossorigin="anonymous"></script>
+
+
+
+
+<!-- clipboard -->
+
+  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.7/clipboard.min.js" crossorigin="anonymous"></script>
+  
+  <script type="text/javascript">
+  $(function() {
+    // copy-btn HTML
+    var btn = "<span class=\"btn-copy tooltipped tooltipped-sw\" aria-label=\"复制到粘贴板！\">";
+    btn += '<i class="fa-regular fa-clone"></i>';
+    btn += '</span>';
+    // mount it!
+    $(".highlight table").before(btn);
+    var clip = new ClipboardJS('.btn-copy', {
+      text: function(trigger) {
+        return Array.from(trigger.nextElementSibling.querySelectorAll('.code')).reduce((str,it)=>str+it.innerText+'\n','')
+      }
+    });
+    clip.on('success', function(e) {
+      e.trigger.setAttribute('aria-label', "复制成功！");
+      e.clearSelection();
+    })
+  })
+  </script>
+
+
+<script src="/js/main.js"></script>
+
+<!-- search -->
+
+<!-- Baidu Analytics -->
+
+<!-- Cloudflare Analytics -->
+
+<!-- Disqus Comments -->
+
+<!-- utterances Comments -->
+
+    <script type="text/javascript">
+      var utterances_repo = 'xgshunliruyi/blog-comments';
+      var utterances_issue_term = 'pathname';
+      var utterances_label = 'Comment';
+      var utterances_theme = 'github-dark';
+
+      (function(){
+          var script = document.createElement('script');
+
+          script.src = 'https://utteranc.es/client.js';
+          script.setAttribute('repo', utterances_repo);
+          script.setAttribute('issue-term', 'pathname');
+          script.setAttribute('label', utterances_label);
+          script.setAttribute('theme', utterances_theme);
+          script.setAttribute('crossorigin', 'anonymous');
+          script.async = true;
+          (document.getElementById('utterances_thread')).appendChild(script);
+      }());
+  </script>
+
+</body>
+</html>

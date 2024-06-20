@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+    <!-- so meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+    <meta name="description" content="幂模运算是RSA密码体制的基础，在面对此类大整数幂模运算时应当注重高效性">
+<meta property="og:type" content="article">
+<meta property="og:title" content="高效幂模：Montgomery算法">
+<meta property="og:url" content="https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/index.html">
+<meta property="og:site_name" content="Sliver Eagle &#39;s Blog">
+<meta property="og:description" content="幂模运算是RSA密码体制的基础，在面对此类大整数幂模运算时应当注重高效性">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2024-05-25T03:27:42.000Z">
+<meta property="article:modified_time" content="2024-06-20T11:56:02.001Z">
+<meta property="article:author" content="Sliver Eagle">
+<meta property="article:tag" content="RSA">
+<meta property="article:tag" content="Montgomery">
+<meta name="twitter:card" content="summary">
+    
+    
+      
+        
+          <link rel="shortcut icon" href="/images/favicon.ico">
+        
+      
+      
+        
+          <link rel="icon" type="image/png" href="/images/favicon-192x192.png" sizes="192x192">
+        
+      
+      
+        
+          <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+        
+      
+    
+    <!-- title -->
+    <title>高效幂模：Montgomery算法</title>
+    <!-- async scripts -->
+    <!-- Google Analytics -->
+
+
+    <!-- Umami Analytics -->
+
+
+    <!-- styles -->
+    
+<link rel="stylesheet" href="/css/style.css">
+
+    <!-- persian styles -->
+    
+    <!-- rss -->
+    
+    
+	<!-- mathjax -->
+	
+		<script type="text/x-mathjax-config">
+		  MathJax.Hub.Config({
+			tex2jax: {
+			  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+			  inlineMath: [['$','$']]
+			}
+		  });
+		</script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML' async></script>
+	
+<meta name="generator" content="Hexo 7.2.0"></head>
+
+<body class="max-width mx-auto px3 ltr">
+    
+      <div id="header-post">
+  <a id="menu-icon" href="#" aria-label="目录"><i class="fa-solid fa-bars fa-lg"></i></a>
+  <a id="menu-icon-tablet" href="#" aria-label="目录"><i class="fa-solid fa-bars fa-lg"></i></a>
+  <a id="top-icon-tablet" href="#" aria-label="顶部" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');" style="display:none;"><i class="fa-solid fa-chevron-up fa-lg"></i></a>
+  <span id="menu">
+    <span id="nav">
+      <ul>
+        <!--
+       --><li><a href="/">首页</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/archives/">归档</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/tags/">标签</a></li><!--
+     --><!--
+       --><li><a target="_blank" rel="noopener" href="http://github.com/probberechts">项目</a></li><!--
+     -->
+      </ul>
+    </span>
+    <br/>
+    <span id="actions">
+      <ul>
+        
+        <li><a class="icon" aria-label="上一篇" href="/2024/06/17/hello-world/"><i class="fa-solid fa-chevron-left" aria-hidden="true" onmouseover="$('#i-prev').toggle();" onmouseout="$('#i-prev').toggle();"></i></a></li>
+        
+        
+        <li><a class="icon" aria-label="下一篇" href="/2024/05/19/RSA%E5%AF%86%E7%A0%81%E4%BD%93%E5%88%B6/"><i class="fa-solid fa-chevron-right" aria-hidden="true" onmouseover="$('#i-next').toggle();" onmouseout="$('#i-next').toggle();"></i></a></li>
+        
+        <li><a class="icon" aria-label="返回顶部" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fa-solid fa-chevron-up" aria-hidden="true" onmouseover="$('#i-top').toggle();" onmouseout="$('#i-top').toggle();"></i></a></li>
+        <li><a class="icon" aria-label="分享文章" href="#"><i class="fa-solid fa-share-alt" aria-hidden="true" onmouseover="$('#i-share').toggle();" onmouseout="$('#i-share').toggle();" onclick="$('#share').toggle();return false;"></i></a></li>
+      </ul>
+      <span id="i-prev" class="info" style="display:none;">上一篇</span>
+      <span id="i-next" class="info" style="display:none;">下一篇</span>
+      <span id="i-top" class="info" style="display:none;">返回顶部</span>
+      <span id="i-share" class="info" style="display:none;">分享文章</span>
+    </span>
+    <br/>
+    <div id="share" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/"><i class="fab fa-facebook " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&text=高效幂模：Montgomery算法"><i class="fab fa-twitter " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&title=高效幂模：Montgomery算法"><i class="fab fa-linkedin " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&is_video=false&description=高效幂模：Montgomery算法"><i class="fab fa-pinterest " aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=高效幂模：Montgomery算法&body=Check out this article: https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/"><i class="fa-solid fa-envelope " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&title=高效幂模：Montgomery算法"><i class="fab fa-get-pocket " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&title=高效幂模：Montgomery算法"><i class="fab fa-reddit " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&title=高效幂模：Montgomery算法"><i class="fab fa-stumbleupon " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&title=高效幂模：Montgomery算法"><i class="fab fa-digg " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&name=高效幂模：Montgomery算法&description=&lt;p&gt;幂模运算是RSA密码体制的基础，在面对此类大整数幂模运算时应当注重高效性&lt;/p&gt;"><i class="fab fa-tumblr " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&t=高效幂模：Montgomery算法"><i class="fab fa-hacker-news " aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+    
+    
+  </span>
+</div>
+
+    
+    <div class="content index py4 ">
+        
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header>
+    
+    <h1 class="posttitle p-name" itemprop="name headline">
+        高效幂模：Montgomery算法
+    </h1>
+
+
+
+    <div class="meta">
+      <span class="author p-author h-card" itemprop="author" itemscope itemtype="http://schema.org/Person">
+        <span class="p-name" itemprop="name">Sliver Eagle</span>
+      </span>
+      
+    <div class="postdate">
+      
+        <time datetime="2024-05-25T03:27:42.000Z" class="dt-published" itemprop="datePublished">2024-05-25</time>
+        
+      
+    </div>
+
+
+      
+    <div class="article-category">
+        <i class="fa-solid fa-archive"></i>
+        <a class="category-link" href="/categories/%E7%AE%97%E6%B3%95/">算法</a>
+    </div>
+
+
+      
+    <div class="article-tag">
+        <i class="fa-solid fa-tag"></i>
+        <a class="p-category" href="/tags/Montgomery/" rel="tag">Montgomery</a>, <a class="p-category" href="/tags/RSA/" rel="tag">RSA</a>
+    </div>
+
+
+    </div>
+  </header>
+  
+
+  <div class="content e-content" itemprop="articleBody">
+    <p>幂模运算是RSA密码体制的基础，在面对此类大整数幂模运算时应当注重高效性</p>
+<span id="more"></span>
+
+<hr>
+<p><strong>朴素幂模算法</strong><br>模运算可以将计算结果限制在模数$n$的范围之内，为了防止计算中间值发生溢出或过大，一般使用以下运算法则<br>$$(a \times b) \ mod \ n &#x3D; (a \ mod \ n) \times (b \ mod \ n) \ mod \ n$$</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">def quick_power(a, x, n):</span><br><span class="line">    &quot;&quot;&quot;快速幂算法计算a^x mod n&quot;&quot;&quot;</span><br><span class="line">    s = 1</span><br><span class="line">    while x &gt; 0:</span><br><span class="line">        if x &amp; 1 == 1:</span><br><span class="line">            s = (s * a) % n</span><br><span class="line">        x &gt;&gt;= 1</span><br><span class="line">        a = a ** 2 % n</span><br><span class="line">    return s</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">a = 5</span><br><span class="line">x = 21</span><br><span class="line">n = 17</span><br><span class="line"></span><br><span class="line">print(f&quot;&#123;a&#125;^&#123;x&#125; mod &#123;n&#125;=&#123;quick_power(a,x,n)&#125;&quot;)</span><br></pre></td></tr></table></figure>
+
+<p>上述程序的一个问题是取模运算仍然使用除法指令，并且除法指令次数和幂运算的指数正相关，由于计算机系统除法运算相当耗时，因此该算法并不高效</p>
+<hr>
+<p><strong>Montgomery算法</strong><br>考虑计算$43 * 56 \ mod \ 97$，我们可以很快计算出$43*56&#x3D;2408$，接下来不计算模，而是让$2408$加上模数$97$的某个倍数使得$2408$转变成一个容易计算的数字，例如低位全为0<br>.<br>$2408 \Rightarrow 2408 + 97 \times 6 &#x3D; 2990$<br>.<br>$2990 \Rightarrow 2990 + 97 \times 30 &#x3D; 5900$<br>.<br>此时如果我们计算$5900 &#x2F; 100$，那么对于我们人脑就简单多了，但可惜的是$59$并不是我们要求的$43 \times 56 \ mod \ 97$的结果  </p>
+<p>引入Montgomery域<br>常规世界的数字形式需要转换成Montgomery域中的数字形式，上述例子的模数是$97$，$2$位的十进制数，则<br>$$R &#x3D; b^m \ &gt; \ p$$<br><strong>注：p是模数，b是计算进制，m是满足上式的最小整数</strong><br>在当前例子中$p&#x3D;97, b&#x3D;10$，计算得到$m&#x3D;2, R&#x3D;100$<br>.<br>对于两个因子进行下列变换<br>$$x \Rightarrow x \times R \ mod \ p$$<br>在当前例子中$43 \Rightarrow 43 \times 100 \ mod \ 97 &#x3D; 32$<br>.<br>计算<br>$$<br>\begin{array}{l}<br>(xR \ mod \ p)(yR \ mod \ p) \ mod \ p \\<br>&#x3D;(xR \times yR) \ mod \ p \\<br>&#x3D;xyR^2 \ mod \ p<br>\end{array}<br>$$<br>为了将计算结果留在Montgomery域中，所以在Montgomery域中每次计算两个因子的乘积后需要除以R，即<br>$$<br>\begin{array}{l}<br>(xR \ mod \ p)(yR \ mod \ p) &#x2F; R \ mod \ p \\<br>&#x3D;xyR^2 &#x2F; R \ mod \ p \\<br>&#x3D;xyR \ mod \ p<br>\end{array}<br>$$<br>注意：除以$R$和乘$R^{-1}$在模$p$下是同余的</p>
+<p>上述例子的推到过程为<br>$$<br>\begin{array}{l}<br>x &#x3D; 43 \Rightarrow x \times R \ mod \ p&#x3D;43 \times 100 \ mod \ 97 &#x3D; 32 \\<br>y &#x3D; 56 \Rightarrow y \times R \ mod \ p&#x3D;56 \times 100 \ mod \ 97 &#x3D; 71 \\<br>a &#x3D; (xR \ mod \ p)(yR \ mod \ p) &#x3D; 32 \times 71 &#x3D; 2272 \\<br>\equiv a + 4p &#x3D; 2272 + 388 &#x3D; 2660 \ (mod \ p) \\<br>\equiv a + 20p &#x3D; 2260 + 1940 &#x3D; 4600 \ (mod \ p) \\<br>b \equiv a &#x2F; R \equiv 4600 &#x2F; 100 &#x3D; 46 \ (mod \ p)<br>\end{array}<br>$$<br>最终我们计算出Montgomery域中的$xy \ (mod \ p)$的结果$46$，对应现实域中的$xyR \ mod \ p$，因此我们需要再进行一个逆变换才能得到真正的结果<br>$$xy \ mod \ p &#x3D; a \times R^{-1} \ mod \ p$$<br>因此上述实例中<br>$$xy \ mod \ p &#x3D; a \times R^{-1} \ mod \ p &#x3D; 46 \times 65 \ mod \ 97 &#x3D; 80 $$</p>
+<hr>
+<p>可以发现算法的特点是在算法两端将现实域的数字转换成Montgomery域中的表示形式，在Montgomery域进行求解后再将Montgomery域中的结果转换回现实域，巧妙之处在于Montgomery域中我们计算$4600&#x2F;100$而不是$2272&#x2F;97$，因此加快了计算<br>.<br>下面是Montgomery论文中提及的第一个简约算法：<br>$$<br>\begin{array}{l}<br>function \quad REDC(T) \\<br>\quad m \leftarrow (T \ mod \ R)N^{&#39;} \ mod \ R \ , \ so \ 0 \le m &lt; R \\<br>\quad t \leftarrow (T+mN) &#x2F; R \\<br>\quad if \ t \ge N \ then \ return \ t-N \ else \ return \ t<br>\end{array}<br>$$<br>其中$N^{&#39;}$满足$RR^{-1}-NN^{&#39;}&#x3D;1 \ (mod \ p)$<br>.  </p>
+<p>上述例子用代码描述为</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">def mont_format(x, r, p):</span><br><span class="line">    return x * r % p</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">def reduce(x, r, p, p_):</span><br><span class="line">    q = (x % r) * p_ % r</span><br><span class="line">    a = (x + q * p) / r</span><br><span class="line">    return int(a - p) if a &gt;= p else int(a)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">x = mont_format(43, 100, 97)</span><br><span class="line">y = mont_format(56, 100, 97)</span><br><span class="line">print(f&quot;reduce(&#123;x&#125;*&#123;y&#125;)=&#123;reduce(x * y, 100, 97, 67)&#125;&quot;)</span><br></pre></td></tr></table></figure>
+<p>实际上计算机执行上述代码的过程十分艰难，因为人脑容易计算的$4600&#x2F;100$，计算机无法通过“抹零”简化计算，以至于它最后还是选择使用除法解决问题<br>.<br>所以在变换中我们令$b &#x3D; 2, \ m &#x3D; 7, \ R &#x3D; 2^7 &#x3D; 128 &gt; 97$，重新编制代码</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">def mont_format(x, r, p):</span><br><span class="line">    return x * r % p</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">def reduce(x, r, p, p_):</span><br><span class="line">    q = (x % r) * p_ % r</span><br><span class="line">    a = (x + q * p) / r</span><br><span class="line">    return int(a - p) if a &gt;= p else int(a)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">x = mont_format(43, 128, 97)</span><br><span class="line">y = mont_format(56, 128, 97)</span><br><span class="line">print(f&quot;reduce(&#123;x&#125;*&#123;y&#125;)=&#123;reduce(x * y, 128, 97, 95)&#125;&quot;)</span><br></pre></td></tr></table></figure>
+<p>由于$R$是$2$的次幂，所以我们可以使用位移代替取模和除法运算，优化代码</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">def mont_format(x, r, p):</span><br><span class="line">    return x * r % p</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">def reduce(x, m, p, p_):</span><br><span class="line">    q = ((x &amp; ((1 &lt;&lt; m) - 1)) * p_) &amp; ((1 &lt;&lt; m) - 1)</span><br><span class="line">    a = (x + q * p) &gt;&gt; m</span><br><span class="line">    return int(a - p) if a &gt;= p else int(a)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">x = mont_format(43, 128, 97)</span><br><span class="line">y = mont_format(56, 128, 97)</span><br><span class="line">print(f&quot;reduce(&#123;x&#125;*&#123;y&#125;)=&#123;reduce(x * y, 7, 97, 95)&#125;&quot;)</span><br></pre></td></tr></table></figure>
+<p>至此我们消除了两数进行模乘的除法操作，当进行大整数幂模运算时，其性能会随着运算量的增大而凸显出来  </p>
+<hr>
+<p><strong>下面给出完整的代码实现</strong>  </p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line">def mont_format(x, r, p):</span><br><span class="line">    return x * r % p</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">def reduce(x, m, p, p_):</span><br><span class="line">    &quot;&quot;&quot;得到在montgomery域中的xyR mod p</span><br><span class="line">       其中n满足p*p_ = -1 (mod r)</span><br><span class="line">       即r*r^(-1) - pp_ = 1 (mod p)&quot;&quot;&quot;</span><br><span class="line">    q = ((x &amp; ((1 &lt;&lt; m) - 1)) * p_) &amp; ((1 &lt;&lt; m) - 1)</span><br><span class="line">    a = (x + q * p) &gt;&gt; m</span><br><span class="line">    return int(a - p) if a &gt;= p else int(a)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">def extended_gcd(a, b):</span><br><span class="line">    &quot;&quot;&quot;扩展欧几里得算法求模的逆元&quot;&quot;&quot;</span><br><span class="line">    if b == 0:</span><br><span class="line">        return a, 1, 0</span><br><span class="line">    else:</span><br><span class="line">        g, x, y = extended_gcd(b, a % b)</span><br><span class="line">        return g, y, x - (a // b) * y</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">def mont_exp(a, x, p):</span><br><span class="line">    &quot;&quot;&quot;使用montgomery算法计算a^x mod p&quot;&quot;&quot;</span><br><span class="line">    m = 0</span><br><span class="line">    while (1 &lt;&lt; m) &lt; p:  # r = 2^m &gt; p</span><br><span class="line">        m = m + 1</span><br><span class="line"></span><br><span class="line">    r = 1 &lt;&lt; m</span><br><span class="line">    g, r_, p_ = extended_gcd(r, p)  # r*r_ + p*p_ = 1 (mod p)</span><br><span class="line">    if g != 1:</span><br><span class="line">        raise ValueError(f&quot;r=2^&#123;m&#125;=&#123;r&#125;与p=&#123;p&#125;不互素,逆元不存在!&quot;)</span><br><span class="line">    p_ = -p_  # r*r_ - p*p_ = 1 (mod p)</span><br><span class="line"></span><br><span class="line">    s = mont_format(1, r, p)</span><br><span class="line">    t = mont_format(a, r, p)</span><br><span class="line"></span><br><span class="line">    while x &gt; 0:</span><br><span class="line">        if (x &amp; 1) == 1:</span><br><span class="line">            s = reduce(s * t, m, p, p_)</span><br><span class="line">        x = x &gt;&gt; 1</span><br><span class="line">        t = reduce(t ** 2, m, p, p_)</span><br><span class="line"></span><br><span class="line">    s = s * r_ % p</span><br><span class="line">    return s</span><br></pre></td></tr></table></figure>
+<p>尽管montgomery算法多了一些预计算，但在循环内不包含任何除法操作，在计算大整数、大次幂的模运算中，相比朴素算法，它的性能将成倍提升</p>
+<hr>
+<p><strong>一些证明</strong><br>1、$T+mN$被$R$整除<br>.<br>$m &#x3D; (T \ mod \ R)N^{&#39;} \ mod \ R &#x3D; TN^{&#39;} \ mod \ R$<br>.<br>$T + mN \equiv T + (TN^{&#39;})N \equiv T-T \equiv 0 \ (mod \ R)$<br>.<br>证毕.<br>2、$t \equiv TR^{-1} \ (mod \ N)$<br>.<br>$t &#x3D; (T+mN)&#x2F;R \equiv (T+mN)R^{-1} \\ \equiv TR^{-1}+mR^{-1}N \equiv TR^{-1} \ (mod \ N)$<br>.  </p>
+
+  </div>
+</article>
+
+
+    <div class="blog-post-comments">
+        <div id="utterances_thread">
+            <noscript>加载评论需要在浏览器启用 JavaScript 脚本支持。</noscript>
+        </div>
+    </div>
+
+
+        
+          <div id="footer-post-container">
+  <div id="footer-post">
+
+    <div id="nav-footer" style="display: none">
+      <ul>
+        
+          <li><a href="/">首页</a></li>
+        
+          <li><a href="/about/">关于</a></li>
+        
+          <li><a href="/archives/">归档</a></li>
+        
+          <li><a href="/categories/">分类</a></li>
+        
+          <li><a href="/tags/">标签</a></li>
+        
+          <li><a target="_blank" rel="noopener" href="http://github.com/probberechts">项目</a></li>
+        
+      </ul>
+    </div>
+
+    
+    
+
+    <div id="share-footer" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/"><i class="fab fa-facebook fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&text=高效幂模：Montgomery算法"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&title=高效幂模：Montgomery算法"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&is_video=false&description=高效幂模：Montgomery算法"><i class="fab fa-pinterest fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=高效幂模：Montgomery算法&body=Check out this article: https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/"><i class="fa-solid fa-envelope fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&title=高效幂模：Montgomery算法"><i class="fab fa-get-pocket fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&title=高效幂模：Montgomery算法"><i class="fab fa-reddit fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&title=高效幂模：Montgomery算法"><i class="fab fa-stumbleupon fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&title=高效幂模：Montgomery算法"><i class="fab fa-digg fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&name=高效幂模：Montgomery算法&description=&lt;p&gt;幂模运算是RSA密码体制的基础，在面对此类大整数幂模运算时应当注重高效性&lt;/p&gt;"><i class="fab fa-tumblr fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=https://xgshunliruyi.github.io/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/&t=高效幂模：Montgomery算法"><i class="fab fa-hacker-news fa-lg" aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+
+    <div id="actions-footer">
+        <a id="menu" class="icon" href="#" onclick="$('#nav-footer').toggle();return false;"><i class="fa-solid fa-bars fa-lg" aria-hidden="true"></i> 菜单</a>
+        
+        <a id="share" class="icon" href="#" onclick="$('#share-footer').toggle();return false;"><i class="fa-solid fa-share-alt fa-lg" aria-hidden="true"></i> 分享</a>
+        <a id="top" style="display:none" class="icon" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fa-solid fa-chevron-up fa-lg" aria-hidden="true"></i> 返回顶部</a>
+    </div>
+
+  </div>
+</div>
+
+        
+        <footer id="footer">
+  <div class="footer-left">
+    Copyright &copy;
+    
+    
+    2024
+    Sliver Eagle
+  </div>
+  <div class="footer-right">
+    <nav>
+      <ul>
+        <!--
+       --><li><a href="/">首页</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/archives/">归档</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/tags/">标签</a></li><!--
+     --><!--
+       --><li><a target="_blank" rel="noopener" href="http://github.com/probberechts">项目</a></li><!--
+     -->
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+    </div>
+    <!-- styles -->
+
+
+
+  <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
+
+
+    <!-- jquery -->
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" crossorigin="anonymous"></script>
+
+
+
+
+<!-- clipboard -->
+
+  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.7/clipboard.min.js" crossorigin="anonymous"></script>
+  
+  <script type="text/javascript">
+  $(function() {
+    // copy-btn HTML
+    var btn = "<span class=\"btn-copy tooltipped tooltipped-sw\" aria-label=\"复制到粘贴板！\">";
+    btn += '<i class="fa-regular fa-clone"></i>';
+    btn += '</span>';
+    // mount it!
+    $(".highlight table").before(btn);
+    var clip = new ClipboardJS('.btn-copy', {
+      text: function(trigger) {
+        return Array.from(trigger.nextElementSibling.querySelectorAll('.code')).reduce((str,it)=>str+it.innerText+'\n','')
+      }
+    });
+    clip.on('success', function(e) {
+      e.trigger.setAttribute('aria-label', "复制成功！");
+      e.clearSelection();
+    })
+  })
+  </script>
+
+
+<script src="/js/main.js"></script>
+
+<!-- search -->
+
+<!-- Baidu Analytics -->
+
+<!-- Cloudflare Analytics -->
+
+<!-- Disqus Comments -->
+
+<!-- utterances Comments -->
+
+    <script type="text/javascript">
+      var utterances_repo = 'xgshunliruyi/blog-comments';
+      var utterances_issue_term = 'pathname';
+      var utterances_label = 'Comment';
+      var utterances_theme = 'github-dark';
+
+      (function(){
+          var script = document.createElement('script');
+
+          script.src = 'https://utteranc.es/client.js';
+          script.setAttribute('repo', utterances_repo);
+          script.setAttribute('issue-term', 'pathname');
+          script.setAttribute('label', utterances_label);
+          script.setAttribute('theme', utterances_theme);
+          script.setAttribute('crossorigin', 'anonymous');
+          script.async = true;
+          (document.getElementById('utterances_thread')).appendChild(script);
+      }());
+  </script>
+
+</body>
+</html>
