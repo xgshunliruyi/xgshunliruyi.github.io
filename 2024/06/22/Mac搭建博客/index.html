@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+    <!-- so meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+    <meta name="description" content="研究生上岸，最近换了一台MacBook，不得不说macOS的颜值是真的很高，从windows换到macOS第一感觉就是GUI太漂亮了，最近打算重新搭建自己的博客，记录一下过程。假设我们拿到的是一台全新的MacBook。  配置环境第一部分是配置自己的电脑环境，需要配置和安装的软件有  homebrew git node hexo  安装Homebrew这是macos的软件包管理工具，使用它下载和管">
+<meta property="og:type" content="article">
+<meta property="og:title" content="在macOS上搭建hexo个人博客">
+<meta property="og:url" content="https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/index.html">
+<meta property="og:site_name" content="Sliver Eagle &#39;s Blog">
+<meta property="og:description" content="研究生上岸，最近换了一台MacBook，不得不说macOS的颜值是真的很高，从windows换到macOS第一感觉就是GUI太漂亮了，最近打算重新搭建自己的博客，记录一下过程。假设我们拿到的是一台全新的MacBook。  配置环境第一部分是配置自己的电脑环境，需要配置和安装的软件有  homebrew git node hexo  安装Homebrew这是macos的软件包管理工具，使用它下载和管">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2024-06-22T10:18:57.000Z">
+<meta property="article:modified_time" content="2024-06-22T13:06:49.818Z">
+<meta property="article:author" content="Sliver Eagle">
+<meta property="article:tag" content="搭建个人博客">
+<meta property="article:tag" content="macOS">
+<meta name="twitter:card" content="summary">
+    
+    
+      
+        
+          <link rel="shortcut icon" href="/images/favicon.ico">
+        
+      
+      
+        
+          <link rel="icon" type="image/png" href="/images/favicon-192x192.png" sizes="192x192">
+        
+      
+      
+        
+          <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+        
+      
+    
+    <!-- title -->
+    <title>在macOS上搭建hexo个人博客</title>
+    <!-- async scripts -->
+    <!-- Google Analytics -->
+
+
+    <!-- Umami Analytics -->
+
+
+    <!-- styles -->
+    
+<link rel="stylesheet" href="/css/style.css">
+
+    <!-- persian styles -->
+    
+    <!-- rss -->
+    
+    
+	<!-- mathjax -->
+	
+		<script type="text/x-mathjax-config">
+		  MathJax.Hub.Config({
+			tex2jax: {
+			  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+			  inlineMath: [['$','$']]
+			}
+		  });
+		</script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML' async></script>
+	
+<meta name="generator" content="Hexo 7.2.0"></head>
+
+<body class="max-width mx-auto px3 ltr">
+    
+      <div id="header-post">
+  <a id="menu-icon" href="#" aria-label="目录"><i class="fa-solid fa-bars fa-lg"></i></a>
+  <a id="menu-icon-tablet" href="#" aria-label="目录"><i class="fa-solid fa-bars fa-lg"></i></a>
+  <a id="top-icon-tablet" href="#" aria-label="顶部" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');" style="display:none;"><i class="fa-solid fa-chevron-up fa-lg"></i></a>
+  <span id="menu">
+    <span id="nav">
+      <ul>
+        <!--
+       --><li><a href="/">首页</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/archives/">归档</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/tags/">标签</a></li><!--
+     --><!--
+       --><li><a target="_blank" rel="noopener" href="https://github.com/xgshunliruyi">项目</a></li><!--
+     -->
+      </ul>
+    </span>
+    <br/>
+    <span id="actions">
+      <ul>
+        
+        
+        <li><a class="icon" aria-label="下一篇" href="/2024/05/25/Montgomery%E7%AE%97%E6%B3%95/"><i class="fa-solid fa-chevron-right" aria-hidden="true" onmouseover="$('#i-next').toggle();" onmouseout="$('#i-next').toggle();"></i></a></li>
+        
+        <li><a class="icon" aria-label="返回顶部" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fa-solid fa-chevron-up" aria-hidden="true" onmouseover="$('#i-top').toggle();" onmouseout="$('#i-top').toggle();"></i></a></li>
+        <li><a class="icon" aria-label="分享文章" href="#"><i class="fa-solid fa-share-alt" aria-hidden="true" onmouseover="$('#i-share').toggle();" onmouseout="$('#i-share').toggle();" onclick="$('#share').toggle();return false;"></i></a></li>
+      </ul>
+      <span id="i-prev" class="info" style="display:none;">上一篇</span>
+      <span id="i-next" class="info" style="display:none;">下一篇</span>
+      <span id="i-top" class="info" style="display:none;">返回顶部</span>
+      <span id="i-share" class="info" style="display:none;">分享文章</span>
+    </span>
+    <br/>
+    <div id="share" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/"><i class="fab fa-facebook " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&text=在macOS上搭建hexo个人博客"><i class="fab fa-twitter " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&title=在macOS上搭建hexo个人博客"><i class="fab fa-linkedin " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&is_video=false&description=在macOS上搭建hexo个人博客"><i class="fab fa-pinterest " aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=在macOS上搭建hexo个人博客&body=Check out this article: https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/"><i class="fa-solid fa-envelope " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&title=在macOS上搭建hexo个人博客"><i class="fab fa-get-pocket " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&title=在macOS上搭建hexo个人博客"><i class="fab fa-reddit " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&title=在macOS上搭建hexo个人博客"><i class="fab fa-stumbleupon " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&title=在macOS上搭建hexo个人博客"><i class="fab fa-digg " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&name=在macOS上搭建hexo个人博客&description="><i class="fab fa-tumblr " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&t=在macOS上搭建hexo个人博客"><i class="fab fa-hacker-news " aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+    
+    
+      <div id="toc">
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E7%8E%AF%E5%A2%83"><span class="toc-number">1.</span> <span class="toc-text">配置环境</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%89%E8%A3%85Homebrew"><span class="toc-number">1.1.</span> <span class="toc-text">安装Homebrew</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%89%E8%A3%85Git"><span class="toc-number">1.2.</span> <span class="toc-text">安装Git</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%89%E8%A3%85Node"><span class="toc-number">1.3.</span> <span class="toc-text">安装Node</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%89%E8%A3%85Hexo"><span class="toc-number">1.4.</span> <span class="toc-text">安装Hexo</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%83%A8%E7%BD%B2%E5%88%B0GitHub"><span class="toc-number">1.5.</span> <span class="toc-text">部署到GitHub</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AEGitHub%E7%9A%84ssh-key"><span class="toc-number">1.6.</span> <span class="toc-text">配置GitHub的ssh key</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%96%B0%E5%BB%BA%E4%BB%93%E5%BA%93"><span class="toc-number">1.7.</span> <span class="toc-text">新建仓库</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%83%A8%E7%BD%B2%E5%8D%9A%E5%AE%A2"><span class="toc-number">1.8.</span> <span class="toc-text">部署博客</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AE%BE%E7%BD%AE%E4%BB%93%E5%BA%93%E4%B8%BAPages"><span class="toc-number">1.9.</span> <span class="toc-text">设置仓库为Pages</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E4%B8%BB%E9%A2%98"><span class="toc-number">2.</span> <span class="toc-text">配置主题</span></a></li></ol>
+      </div>
+    
+  </span>
+</div>
+
+    
+    <div class="content index py4 ">
+        
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header>
+    
+    <h1 class="posttitle p-name" itemprop="name headline">
+        在macOS上搭建hexo个人博客
+    </h1>
+
+
+
+    <div class="meta">
+      <span class="author p-author h-card" itemprop="author" itemscope itemtype="http://schema.org/Person">
+        <span class="p-name" itemprop="name">Sliver Eagle</span>
+      </span>
+      
+    <div class="postdate">
+      
+        <time datetime="2024-06-22T10:18:57.000Z" class="dt-published" itemprop="datePublished">2024-06-22</time>
+        
+      
+    </div>
+
+
+      
+    <div class="article-category">
+        <i class="fa-solid fa-archive"></i>
+        <a class="category-link" href="/categories/%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2/">搭建个人博客</a>
+    </div>
+
+
+      
+    <div class="article-tag">
+        <i class="fa-solid fa-tag"></i>
+        <a class="p-category" href="/tags/macOS/" rel="tag">macOS</a>, <a class="p-category" href="/tags/%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2/" rel="tag">搭建个人博客</a>
+    </div>
+
+
+    </div>
+  </header>
+  
+
+  <div class="content e-content" itemprop="articleBody">
+    <p>研究生上岸，最近换了一台MacBook，不得不说macOS的颜值是真的很高，从windows换到macOS第一感觉就是GUI太漂亮了，最近打算重新搭建自己的博客，记录一下过程。<br>假设我们拿到的是一台全新的MacBook。</p>
+<hr>
+<h2 id="配置环境"><a href="#配置环境" class="headerlink" title="配置环境"></a>配置环境</h2><p>第一部分是配置自己的电脑环境，需要配置和安装的软件有</p>
+<ol>
+<li>homebrew</li>
+<li>git</li>
+<li>node</li>
+<li>hexo</li>
+</ol>
+<h3 id="安装Homebrew"><a href="#安装Homebrew" class="headerlink" title="安装Homebrew"></a>安装Homebrew</h3><p>这是macos的软件包管理工具，使用它下载和管理软件、依赖等都非常方便，如果可以的话，尽量都使用homebrew安装软件，这是因为在我们卸载软件的时候，homebrew会跟踪软件并且自动的帮我们清理掉残留的文件和依赖  </p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/bin/bash -c <span class="string">&quot;<span class="subst">$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)</span>”</span></span><br></pre></td></tr></table></figure>
+<p>接下来我们使用下面的命令验证是否安装成功  </p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">brew --version</span><br></pre></td></tr></table></figure>
+<p>这时可能显示<code>zsh:command not found:brew</code>，但执行<code>/opt/homebrew/bin/brew --version</code>可以显示版本号，原因是homebrew的安装路径并没有添加到系统的PATH环境变量中。<br>解决办法：打开文件<code>nano ~/.zshrc</code>，在文件的末尾添加<code>export PATH=&quot;/opt/homebrew/bin:$PATH&quot;</code>，最后重新加载配置文件<code>source ~/.zshrc</code>。<br>再次验证就好啦。</p>
+<h3 id="安装Git"><a href="#安装Git" class="headerlink" title="安装Git"></a>安装Git</h3><p>你可以先使用<code>git --version</code>来查看Git是否已经安装，如果没有，使用<code>brew install git</code>安装即可。</p>
+<h3 id="安装Node"><a href="#安装Node" class="headerlink" title="安装Node"></a>安装Node</h3><p>同样，你可以先用<code>node -v</code>和<code>npm -v</code>来查看是否已经安装，如果没有，请使用<code>brew install node</code>  </p>
+<h3 id="安装Hexo"><a href="#安装Hexo" class="headerlink" title="安装Hexo"></a>安装Hexo</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install -g hexo-cli</span><br></pre></td></tr></table></figure>
+<p>安装完成后就可以初始化博客了，我们选择一个合适的文件夹，在其中执行：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo init blog_name</span><br></pre></td></tr></table></figure>
+<p>这样就在当前文件夹下创建一个名为blog_name的目录<br>接着我们使用下面的命令生成并预览博客：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> blog_name</span><br><span class="line">hexo g</span><br><span class="line">hexo s</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="部署到GitHub"><a href="#部署到GitHub" class="headerlink" title="部署到GitHub"></a>部署到GitHub</h3><p>上面的第一部分完整后，我们本地的博客就搭建好了，下面我们把博客部署到GitHub Pages。</p>
+<h3 id="配置GitHub的ssh-key"><a href="#配置GitHub的ssh-key" class="headerlink" title="配置GitHub的ssh key"></a>配置GitHub的ssh key</h3><p>我们执行如下命令</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ssh-keygen -t rsa -b 4096 -C <span class="string">&quot;example@example.com&quot;</span> -f ~/.ssh/id_rsa_github</span><br></pre></td></tr></table></figure>
+<p>上面的命令会生成一对用于ssh连接的公私钥对，一般来说，除了GitHub，我们可能在将来还会给其他的服务器配置ssh key以进行ssh连接，所以，为了方面之后ssh key的管理，我们新建一个文件<code>~/.ssh/config</code>，并在其中写入</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># GitHub</span></span><br><span class="line">Host github.com</span><br><span class="line">    HostName github.com</span><br><span class="line">    User git</span><br><span class="line">    IdentityFile ~/.ssh/id_rsa_github</span><br></pre></td></tr></table></figure>
+<p>如果以后需要配置其他的ssh key，参照这个模版，再添加一块就可以啦。<br>下面我们把公钥复制到剪切板：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pbcopy &lt; ~/.ssh/id\_rsa\_github.pub</span><br></pre></td></tr></table></figure>
+<p>然后粘贴到GitHub设置的<code>SSH Keys</code>处，具体在GitHub什么地方我相信大家都知道：</p>
+<ol>
+<li>点击右上见我们的头像，进入<code>settings</code></li>
+<li>在左侧栏点击<code>SSH and GPG Keys</code></li>
+<li>然后点击<code>new ssh key</code>，粘贴进去就可以了<br>最后我们测试一下连接：<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ssh github.com</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h3 id="新建仓库"><a href="#新建仓库" class="headerlink" title="新建仓库"></a>新建仓库</h3><p>新建仓库的过程就不啰嗦了，只需要注意仓库名为<code>你的GitHub用户名.github.io</code>，其他的设置保持默认就行。</p>
+<h3 id="部署博客"><a href="#部署博客" class="headerlink" title="部署博客"></a>部署博客</h3><p>首先安装：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install hexo-deplover-git --save</span><br></pre></td></tr></table></figure>
+<p>然后修改<code>_config.yml</code>文件，翻到最底部，修改<code>deploy</code>部分：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">deploy:</span><br><span class="line">  <span class="built_in">type</span>: git</span><br><span class="line">  repo: git@github.com:你的用户名/你的用户名.github.io.git</span><br><span class="line">  branch: master</span><br></pre></td></tr></table></figure>
+<p>最后我们执行<code>hexo d</code>  </p>
+<h3 id="设置仓库为Pages"><a href="#设置仓库为Pages" class="headerlink" title="设置仓库为Pages"></a>设置仓库为Pages</h3><p>在GitHub页面中进入<code>settings-&gt;pages</code>，将<code>branch</code>设置成<code>master</code>即可</p>
+<hr>
+<h2 id="配置主题"><a href="#配置主题" class="headerlink" title="配置主题"></a>配置主题</h2><p>现在我们一个裸奔的博客就搭建完成了，是可以写文章发文章的，但是接下来的美化操作我就略过了，因为配置文件<code>_config.yml</code>的注释已经非常明了了，如果不清楚，可以看一下hexo的文档<br>另外，主题的选择和美化也略过了，毕竟萝卜青菜各有所爱，大家可以选择自己喜欢的主题就好，我使用的主题是<code>cactus</code>，简约风格，而且配置非常简单，不需要安装任何额外的插件，配置文件的注释也非常详细，最重要的是它对于公式的支持很好，只需要在配置文件中将公式支持改为true即可，我以往使用的一些主题对公式的支持都不是很好，不仅需要更换渲染器，还需要修改一些文件，很不方便。  </p>
+
+  </div>
+</article>
+
+
+    <div class="blog-post-comments">
+        <div id="utterances_thread">
+            <noscript>加载评论需要在浏览器启用 JavaScript 脚本支持。</noscript>
+        </div>
+    </div>
+
+
+        
+          <div id="footer-post-container">
+  <div id="footer-post">
+
+    <div id="nav-footer" style="display: none">
+      <ul>
+        
+          <li><a href="/">首页</a></li>
+        
+          <li><a href="/about/">关于</a></li>
+        
+          <li><a href="/archives/">归档</a></li>
+        
+          <li><a href="/categories/">分类</a></li>
+        
+          <li><a href="/tags/">标签</a></li>
+        
+          <li><a target="_blank" rel="noopener" href="https://github.com/xgshunliruyi">项目</a></li>
+        
+      </ul>
+    </div>
+
+    
+    
+      <div id="toc-footer" style="display: none">
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E7%8E%AF%E5%A2%83"><span class="toc-number">1.</span> <span class="toc-text">配置环境</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%89%E8%A3%85Homebrew"><span class="toc-number">1.1.</span> <span class="toc-text">安装Homebrew</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%89%E8%A3%85Git"><span class="toc-number">1.2.</span> <span class="toc-text">安装Git</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%89%E8%A3%85Node"><span class="toc-number">1.3.</span> <span class="toc-text">安装Node</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%89%E8%A3%85Hexo"><span class="toc-number">1.4.</span> <span class="toc-text">安装Hexo</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%83%A8%E7%BD%B2%E5%88%B0GitHub"><span class="toc-number">1.5.</span> <span class="toc-text">部署到GitHub</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%85%8D%E7%BD%AEGitHub%E7%9A%84ssh-key"><span class="toc-number">1.6.</span> <span class="toc-text">配置GitHub的ssh key</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%96%B0%E5%BB%BA%E4%BB%93%E5%BA%93"><span class="toc-number">1.7.</span> <span class="toc-text">新建仓库</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%83%A8%E7%BD%B2%E5%8D%9A%E5%AE%A2"><span class="toc-number">1.8.</span> <span class="toc-text">部署博客</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AE%BE%E7%BD%AE%E4%BB%93%E5%BA%93%E4%B8%BAPages"><span class="toc-number">1.9.</span> <span class="toc-text">设置仓库为Pages</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E4%B8%BB%E9%A2%98"><span class="toc-number">2.</span> <span class="toc-text">配置主题</span></a></li></ol>
+      </div>
+    
+
+    <div id="share-footer" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/"><i class="fab fa-facebook fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&text=在macOS上搭建hexo个人博客"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&title=在macOS上搭建hexo个人博客"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&is_video=false&description=在macOS上搭建hexo个人博客"><i class="fab fa-pinterest fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=在macOS上搭建hexo个人博客&body=Check out this article: https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/"><i class="fa-solid fa-envelope fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&title=在macOS上搭建hexo个人博客"><i class="fab fa-get-pocket fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&title=在macOS上搭建hexo个人博客"><i class="fab fa-reddit fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&title=在macOS上搭建hexo个人博客"><i class="fab fa-stumbleupon fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&title=在macOS上搭建hexo个人博客"><i class="fab fa-digg fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&name=在macOS上搭建hexo个人博客&description="><i class="fab fa-tumblr fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=https://xgshunliruyi.github.io/2024/06/22/Mac%E6%90%AD%E5%BB%BA%E5%8D%9A%E5%AE%A2/&t=在macOS上搭建hexo个人博客"><i class="fab fa-hacker-news fa-lg" aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+
+    <div id="actions-footer">
+        <a id="menu" class="icon" href="#" onclick="$('#nav-footer').toggle();return false;"><i class="fa-solid fa-bars fa-lg" aria-hidden="true"></i> 菜单</a>
+        
+          <a id="toc" class="icon" href="#" onclick="$('#toc-footer').toggle();return false;"><i class="fa-solid fa-list fa-lg" aria-hidden="true"></i> 目录</a>
+        
+        <a id="share" class="icon" href="#" onclick="$('#share-footer').toggle();return false;"><i class="fa-solid fa-share-alt fa-lg" aria-hidden="true"></i> 分享</a>
+        <a id="top" style="display:none" class="icon" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fa-solid fa-chevron-up fa-lg" aria-hidden="true"></i> 返回顶部</a>
+    </div>
+
+  </div>
+</div>
+
+        
+        <footer id="footer">
+  <div class="footer-left">
+    Copyright &copy;
+    
+    
+    2024
+    Sliver Eagle
+  </div>
+  <div class="footer-right">
+    <nav>
+      <ul>
+        <!--
+       --><li><a href="/">首页</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/archives/">归档</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/tags/">标签</a></li><!--
+     --><!--
+       --><li><a target="_blank" rel="noopener" href="https://github.com/xgshunliruyi">项目</a></li><!--
+     -->
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+    </div>
+    <!-- styles -->
+
+
+
+  <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
+
+
+    <!-- jquery -->
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" crossorigin="anonymous"></script>
+
+
+
+
+<!-- clipboard -->
+
+  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.7/clipboard.min.js" crossorigin="anonymous"></script>
+  
+  <script type="text/javascript">
+  $(function() {
+    // copy-btn HTML
+    var btn = "<span class=\"btn-copy tooltipped tooltipped-sw\" aria-label=\"复制到粘贴板！\">";
+    btn += '<i class="fa-regular fa-clone"></i>';
+    btn += '</span>';
+    // mount it!
+    $(".highlight table").before(btn);
+    var clip = new ClipboardJS('.btn-copy', {
+      text: function(trigger) {
+        return Array.from(trigger.nextElementSibling.querySelectorAll('.code')).reduce((str,it)=>str+it.innerText+'\n','')
+      }
+    });
+    clip.on('success', function(e) {
+      e.trigger.setAttribute('aria-label', "复制成功！");
+      e.clearSelection();
+    })
+  })
+  </script>
+
+
+<script src="/js/main.js"></script>
+
+<!-- search -->
+
+<!-- Baidu Analytics -->
+
+<!-- Cloudflare Analytics -->
+
+<!-- Disqus Comments -->
+
+<!-- utterances Comments -->
+
+    <script type="text/javascript">
+      var utterances_repo = 'xgshunliruyi/blog-comments';
+      var utterances_issue_term = 'pathname';
+      var utterances_label = 'Comment';
+      var utterances_theme = 'github-dark';
+
+      (function(){
+          var script = document.createElement('script');
+
+          script.src = 'https://utteranc.es/client.js';
+          script.setAttribute('repo', utterances_repo);
+          script.setAttribute('issue-term', 'pathname');
+          script.setAttribute('label', utterances_label);
+          script.setAttribute('theme', utterances_theme);
+          script.setAttribute('crossorigin', 'anonymous');
+          script.async = true;
+          (document.getElementById('utterances_thread')).appendChild(script);
+      }());
+  </script>
+
+</body>
+</html>
