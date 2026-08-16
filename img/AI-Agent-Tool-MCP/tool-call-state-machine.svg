@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 760 1740"
+     width="760"
+     height="1740"
+     role="img"
+     aria-labelledby="tool-call-title tool-call-desc"
+     style="max-width: 100%; height: auto;"
+     preserveAspectRatio="xMidYMid meet">
+  <title id="tool-call-title">AI Agent 工具调用状态机</title>
+  <desc id="tool-call-desc">
+    用户请求进入运行时并触发第一次模型调用。模型返回带 call_id 的 function_call，运行时依次执行
+    结构校验、调用去重、权限与审批检查，再调用工具。成功或结构化错误都通过同一 call_id 封装为
+    function_call_output，并连同第一次响应的全部输出项交给第二次模型调用。新调用在预算内回到门控，
+    最终消息、超限、策略拦截或不可恢复错误使运行停止；瞬时错误只能进行有界重试。
+  </desc>
+
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8.5" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#1d4ed8"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="8.5" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#b91c1c"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="8.5" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#6d28d9"/>
+    </marker>
+    <style>
+      text {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          "Noto Sans SC", "Microsoft YaHei", sans-serif;
+        fill: #0f172a;
+      }
+      .heading { font-size: 28px; font-weight: 750; }
+      .subheading { font-size: 15px; font-weight: 550; fill: #475569; }
+      .card-title { font-size: 18px; font-weight: 750; }
+      .body { font-size: 15px; font-weight: 520; fill: #334155; }
+      .small { font-size: 13px; font-weight: 600; fill: #475569; }
+      .tiny { font-size: 12px; font-weight: 650; fill: #475569; }
+      .on-dark { fill: #cbd5e1; }
+      .pill { font-size: 14px; font-weight: 750; }
+      .pill-light { fill: #ffffff; }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", monospace;
+        font-size: 13px;
+        font-weight: 600;
+        fill: #f8fafc;
+      }
+      .mono-accent {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", monospace;
+        font-size: 13px;
+        font-weight: 750;
+        fill: #bfdbfe;
+      }
+      .arrow {
+        fill: none;
+        stroke: #1d4ed8;
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        marker-end: url(#arrow-blue);
+      }
+      .retry {
+        fill: none;
+        stroke: #b91c1c;
+        stroke-width: 2.5;
+        stroke-dasharray: 7 5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        marker-end: url(#arrow-red);
+      }
+      .loop {
+        fill: none;
+        stroke: #6d28d9;
+        stroke-width: 2.5;
+        stroke-dasharray: 7 5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        marker-end: url(#arrow-purple);
+      }
+    </style>
+  </defs>
+
+  <!-- Explicit light canvas keeps the diagram readable in dark themes. -->
+  <rect x="1" y="1" width="758" height="1738" rx="22" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
+
+  <text x="380" y="48" class="heading" text-anchor="middle">工具调用不是一次 RPC，而是一台受控状态机</text>
+  <text x="380" y="77" class="subheading" text-anchor="middle">模型只表达调用意图；运行时负责验证、授权、执行、关联与终止</text>
+
+  <!-- Actors -->
+  <rect x="40" y="104" width="120" height="48" rx="13" fill="#0f172a"/>
+  <text x="100" y="134" class="pill pill-light" text-anchor="middle">用户 User</text>
+  <rect x="180" y="104" width="120" height="48" rx="13" fill="#6d28d9"/>
+  <text x="240" y="134" class="pill pill-light" text-anchor="middle">模型 Model</text>
+  <rect x="320" y="104" width="120" height="48" rx="13" fill="#1d4ed8"/>
+  <text x="380" y="134" class="pill pill-light" text-anchor="middle">运行时 Runtime</text>
+  <rect x="460" y="104" width="120" height="48" rx="13" fill="#b45309"/>
+  <text x="520" y="134" class="pill pill-light" text-anchor="middle">策略 Policy</text>
+  <rect x="600" y="104" width="120" height="48" rx="13" fill="#047857"/>
+  <text x="660" y="134" class="pill pill-light" text-anchor="middle">工具 Tool</text>
+
+  <!-- User input -->
+  <rect x="80" y="184" width="600" height="76" rx="16" fill="#ffffff" stroke="#334155" stroke-width="2"/>
+  <rect x="100" y="203" width="84" height="36" rx="18" fill="#0f172a"/>
+  <text x="142" y="226" class="pill pill-light" text-anchor="middle">用户</text>
+  <text x="206" y="215" class="card-title">“查询订单 A-1024 的状态”</text>
+  <text x="206" y="239" class="body">请求进入 Agent 运行时；权限与预算尚未被授予给模型</text>
+  <path d="M380 260 V291" class="arrow"/>
+
+  <!-- First model call -->
+  <rect x="80" y="296" width="600" height="174" rx="18" fill="#f5f3ff" stroke="#6d28d9" stroke-width="2.5"/>
+  <rect x="100" y="314" width="120" height="32" rx="16" fill="#6d28d9"/>
+  <text x="160" y="335" class="pill pill-light" text-anchor="middle">模型调用 #1</text>
+  <text x="238" y="335" class="small">输入：对话 + 可见工具定义 + 约束</text>
+  <rect x="100" y="358" width="560" height="92" rx="12" fill="#0f172a"/>
+  <text x="120" y="381" class="mono">output[0].type = "function_call"</text>
+  <text x="120" y="403" class="mono">name = "get_order"   arguments = {"order_id":"A-1024"}</text>
+  <text x="120" y="425" class="mono-accent">call_id = "call_7a"   ← 模型侧关联键，不是 RPC 请求 ID</text>
+  <text x="120" y="444" class="tiny on-dark">output 可能同时含 reasoning、message 等异构项；运行时必须完整保留</text>
+  <path d="M380 470 V501" class="arrow"/>
+
+  <!-- Runtime gate -->
+  <rect x="80" y="506" width="600" height="150" rx="18" fill="#eff6ff" stroke="#1d4ed8" stroke-width="2.5"/>
+  <rect x="100" y="524" width="122" height="32" rx="16" fill="#1d4ed8"/>
+  <text x="161" y="545" class="pill pill-light" text-anchor="middle">Runtime Gate</text>
+  <text x="244" y="545" class="card-title">解析与机械性门控</text>
+  <circle cx="112" cy="581" r="5" fill="#1d4ed8"/>
+  <text x="128" y="586" class="body">按 JSON Schema 再校验参数；拒绝未知字段与越界值</text>
+  <circle cx="112" cy="610" r="5" fill="#1d4ed8"/>
+  <text x="128" y="615" class="body">用 call_id 去重；查找工具名；检查轮次、并发、成本与超时</text>
+  <circle cx="112" cy="639" r="5" fill="#1d4ed8"/>
+  <text x="128" y="644" class="body">验证失败也要生成结构化错误，不把异常直接暴露给模型</text>
+  <path d="M380 656 V687" class="arrow"/>
+
+  <!-- Policy gate -->
+  <rect x="80" y="692" width="600" height="116" rx="18" fill="#fff7ed" stroke="#b45309" stroke-width="2.5"/>
+  <rect x="100" y="710" width="112" height="32" rx="16" fill="#b45309"/>
+  <text x="156" y="731" class="pill pill-light" text-anchor="middle">Policy Gate</text>
+  <text x="234" y="731" class="card-title">上下文相关授权</text>
+  <text x="104" y="770" class="body">身份、资源范围、租户和风险必须由运行时判定；工具注解不可信</text>
+  <text x="104" y="793" class="small">敏感动作：暂停 → 展示最终参数 → 人工批准 → 执行前再次授权（防 TOCTOU）</text>
+  <path d="M380 808 V839" class="arrow"/>
+
+  <!-- Tool execution -->
+  <rect x="80" y="844" width="600" height="126" rx="18" fill="#ecfdf5" stroke="#047857" stroke-width="2.5"/>
+  <rect x="100" y="862" width="94" height="32" rx="16" fill="#047857"/>
+  <text x="147" y="883" class="pill pill-light" text-anchor="middle">工具执行</text>
+  <text x="216" y="883" class="card-title">受控 I/O，而非模型代码</text>
+  <text x="104" y="921" class="body">超时与取消 · 熔断与限流 · 最小凭据 · 输出大小/类型校验</text>
+  <text x="104" y="948" class="body">写操作使用业务幂等键；“结果未知”不能被当作“执行失败”盲重试</text>
+  <path d="M380 970 V1001" class="arrow"/>
+
+  <!-- Outcomes -->
+  <rect x="80" y="1006" width="600" height="140" rx="18" fill="#ffffff" stroke="#64748b" stroke-width="2.5"/>
+  <text x="104" y="1036" class="card-title">执行结果分流</text>
+  <rect x="104" y="1053" width="166" height="68" rx="12" fill="#ecfdf5" stroke="#047857" stroke-width="2"/>
+  <text x="187" y="1078" class="pill" text-anchor="middle" fill="#065f46">成功</text>
+  <text x="187" y="1103" class="small" text-anchor="middle">规范化业务结果</text>
+  <rect x="297" y="1053" width="166" height="68" rx="12" fill="#fef2f2" stroke="#b91c1c" stroke-width="2"/>
+  <text x="380" y="1078" class="pill" text-anchor="middle" fill="#991b1b">可重试故障</text>
+  <text x="380" y="1103" class="small" text-anchor="middle">退避 + 抖动 + 上限</text>
+  <rect x="490" y="1053" width="166" height="68" rx="12" fill="#fff7ed" stroke="#b45309" stroke-width="2"/>
+  <text x="573" y="1078" class="pill" text-anchor="middle" fill="#92400e">业务错 / 未知</text>
+  <text x="573" y="1103" class="small" text-anchor="middle">返回错误信封或停机</text>
+  <path d="M80 1078 C31 1078 31 912 76 912" class="retry"/>
+  <rect x="20" y="973" width="104" height="29" rx="14" fill="#fee2e2" stroke="#b91c1c"/>
+  <text x="72" y="993" class="tiny" text-anchor="middle" fill="#991b1b">仅有界重试</text>
+  <path d="M380 1146 V1177" class="arrow"/>
+
+  <!-- Function output -->
+  <rect x="80" y="1182" width="600" height="142" rx="18" fill="#eff6ff" stroke="#1d4ed8" stroke-width="2.5"/>
+  <rect x="100" y="1200" width="110" height="32" rx="16" fill="#1d4ed8"/>
+  <text x="155" y="1221" class="pill pill-light" text-anchor="middle">Runtime 回填</text>
+  <text x="232" y="1221" class="card-title">把观察结果接回模型轨迹</text>
+  <rect x="100" y="1244" width="560" height="60" rx="12" fill="#0f172a"/>
+  <text x="120" y="1268" class="mono">type = "function_call_output"</text>
+  <text x="120" y="1291" class="mono-accent">call_id = "call_7a"   output = {"ok":true,"status":"shipped"}</text>
+  <text x="104" y="1317" class="tiny">下一次输入 = 第一次响应的全部 output items + 本结果；不要只回填工具文本</text>
+  <path d="M380 1324 V1355" class="arrow"/>
+
+  <!-- Second model call -->
+  <rect x="80" y="1360" width="600" height="124" rx="18" fill="#f5f3ff" stroke="#6d28d9" stroke-width="2.5"/>
+  <rect x="100" y="1378" width="120" height="32" rx="16" fill="#6d28d9"/>
+  <text x="160" y="1399" class="pill pill-light" text-anchor="middle">模型调用 #2</text>
+  <text x="242" y="1399" class="card-title">基于工具观察继续决策</text>
+  <text x="104" y="1438" class="body">message → 生成最终回答；function_call → 未超轮次/预算时回到 Gate</text>
+  <text x="104" y="1465" class="small">并行调用：每个 call_id 独立关联、独立授权、独立记录成功或失败</text>
+  <path d="M680 1423 H720 V581 H684" class="loop"/>
+  <text x="712" y="1036" class="tiny" fill="#5b21b6" text-anchor="middle"
+        transform="rotate(-90 712 1036)">新 function_call：有界循环</text>
+  <path d="M380 1484 V1515" class="arrow"/>
+
+  <!-- Stop states -->
+  <rect x="80" y="1520" width="600" height="94" rx="18" fill="#f1f5f9" stroke="#334155" stroke-width="2.5"/>
+  <text x="104" y="1551" class="card-title">停止与暂停不是同一种状态</text>
+  <text x="104" y="1578" class="body">终止：最终 message · 超轮次/预算 · 策略拦截 · 不可恢复错误</text>
+  <text x="104" y="1601" class="small">暂停：等待审批或外部输入；持久化状态后可从同一运行继续</text>
+
+  <!-- Observability footer -->
+  <rect x="40" y="1640" width="680" height="66" rx="16" fill="#0f172a"/>
+  <text x="380" y="1666" class="pill pill-light" text-anchor="middle">贯穿全链路的可观测字段</text>
+  <text x="380" y="1691" class="small on-dark" text-anchor="middle">
+    response_id · call_id · tool · attempt · approval · latency · outcome · tokens · cost
+  </text>
+  <text x="380" y="1728" class="small" text-anchor="middle">结构正确 ≠ 工具选对 ≠ 参数语义正确 ≠ 调用被授权</text>
+</svg>

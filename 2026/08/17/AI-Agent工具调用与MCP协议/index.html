@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang=zh>
+<head>
+    <!-- so meta -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="HandheldFriendly" content="True">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+    <meta name="description" content="在上一篇文章中，我们把 Agent 定义为“模型决策、工具执行、状态与反馈闭环”的软件系统。如果继续向下追问，真正决定系统能否进入生产环境的，往往不是提示词，而是两个接口问题：模型如何把意图交给确定性程序执行，以及应用如何用统一协议连接外部能力。 前一个问题对应 Tool Calling（工具调用），后一个问题对应 Model Context Protocol（MCP）。两者经常被包装成“一句话接">
+<meta property="og:type" content="article">
+<meta property="og:title" content="硬核解析：AI Agent的工具调用机制与MCP协议">
+<meta property="og:url" content="https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/index.html">
+<meta property="og:site_name" content="Sliver Eagle &#39;s Blog">
+<meta property="og:description" content="在上一篇文章中，我们把 Agent 定义为“模型决策、工具执行、状态与反馈闭环”的软件系统。如果继续向下追问，真正决定系统能否进入生产环境的，往往不是提示词，而是两个接口问题：模型如何把意图交给确定性程序执行，以及应用如何用统一协议连接外部能力。 前一个问题对应 Tool Calling（工具调用），后一个问题对应 Model Context Protocol（MCP）。两者经常被包装成“一句话接">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://xgshunliruyi.github.io/img/AI-Agent-Tool-MCP/tool-call-state-machine.svg">
+<meta property="og:image" content="https://xgshunliruyi.github.io/img/AI-Agent-Tool-MCP/mcp-bridge.svg">
+<meta property="article:published_time" content="2026-08-16T20:23:00.000Z">
+<meta property="article:modified_time" content="2026-08-16T20:38:46.336Z">
+<meta property="article:author" content="Sliver Eagle">
+<meta property="article:tag" content="AI Agent">
+<meta property="article:tag" content="OpenAI">
+<meta property="article:tag" content="Tool Calling">
+<meta property="article:tag" content="MCP">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://xgshunliruyi.github.io/img/AI-Agent-Tool-MCP/tool-call-state-machine.svg">
+    
+    
+      
+        
+          <link rel="shortcut icon" href="/images/favicon.ico">
+        
+      
+      
+        
+          <link rel="icon" type="image/png" href="/images/favicon-192x192.png" sizes="192x192">
+        
+      
+      
+        
+          <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
+        
+      
+    
+    <!-- title -->
+    <title>硬核解析：AI Agent的工具调用机制与MCP协议</title>
+    <!-- async scripts -->
+    <!-- Google Analytics -->
+
+
+    <!-- Umami Analytics -->
+
+
+    <!-- styles -->
+    
+<link rel="stylesheet" href="/css/style.css">
+
+    <!-- persian styles -->
+    
+    <!-- rss -->
+    
+    
+	<!-- mathjax -->
+	
+		<script type="text/x-mathjax-config">
+		  MathJax.Hub.Config({
+			tex2jax: {
+			  skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+			  inlineMath: [['$','$']]
+			}
+		  });
+		</script>
+		<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML' async></script>
+	
+<meta name="generator" content="Hexo 7.2.0"></head>
+
+<body class="max-width mx-auto px3 ltr">
+    
+      <div id="header-post">
+  <a id="menu-icon" href="#" aria-label="目录"><i class="fa-solid fa-bars fa-lg"></i></a>
+  <a id="menu-icon-tablet" href="#" aria-label="目录"><i class="fa-solid fa-bars fa-lg"></i></a>
+  <a id="top-icon-tablet" href="#" aria-label="顶部" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');" style="display:none;"><i class="fa-solid fa-chevron-up fa-lg"></i></a>
+  <span id="menu">
+    <span id="nav">
+      <ul>
+        <!--
+       --><li><a href="/">首页</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/archives/">归档</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/tags/">标签</a></li><!--
+     --><!--
+       --><li><a target="_blank" rel="noopener" href="https://github.com/xgshunliruyi">项目</a></li><!--
+     -->
+      </ul>
+    </span>
+    <br/>
+    <span id="actions">
+      <ul>
+        
+        
+        <li><a class="icon" aria-label="下一篇" href="/2026/08/17/AI-Agent%E5%8E%9F%E7%90%86%E4%B8%8E%E6%9E%B6%E6%9E%84/"><i class="fa-solid fa-chevron-right" aria-hidden="true" onmouseover="$('#i-next').toggle();" onmouseout="$('#i-next').toggle();"></i></a></li>
+        
+        <li><a class="icon" aria-label="返回顶部" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fa-solid fa-chevron-up" aria-hidden="true" onmouseover="$('#i-top').toggle();" onmouseout="$('#i-top').toggle();"></i></a></li>
+        <li><a class="icon" aria-label="分享文章" href="#"><i class="fa-solid fa-share-alt" aria-hidden="true" onmouseover="$('#i-share').toggle();" onmouseout="$('#i-share').toggle();" onclick="$('#share').toggle();return false;"></i></a></li>
+      </ul>
+      <span id="i-prev" class="info" style="display:none;">上一篇</span>
+      <span id="i-next" class="info" style="display:none;">下一篇</span>
+      <span id="i-top" class="info" style="display:none;">返回顶部</span>
+      <span id="i-share" class="info" style="display:none;">分享文章</span>
+    </span>
+    <br/>
+    <div id="share" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/"><i class="fab fa-facebook " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&text=硬核解析：AI Agent的工具调用机制与MCP协议"><i class="fab fa-twitter " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&title=硬核解析：AI Agent的工具调用机制与MCP协议"><i class="fab fa-linkedin " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&is_video=false&description=硬核解析：AI Agent的工具调用机制与MCP协议"><i class="fab fa-pinterest " aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=硬核解析：AI Agent的工具调用机制与MCP协议&body=Check out this article: https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/"><i class="fa-solid fa-envelope " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&title=硬核解析：AI Agent的工具调用机制与MCP协议"><i class="fab fa-get-pocket " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&title=硬核解析：AI Agent的工具调用机制与MCP协议"><i class="fab fa-reddit " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&title=硬核解析：AI Agent的工具调用机制与MCP协议"><i class="fab fa-stumbleupon " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&title=硬核解析：AI Agent的工具调用机制与MCP协议"><i class="fab fa-digg " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&name=硬核解析：AI Agent的工具调用机制与MCP协议&description=&lt;p&gt;在&lt;a href=&#34;/2026/08/17/AI-Agent%E5%8E%9F%E7%90%86%E4%B8%8E%E6%9E%B6%E6%9E%84/&#34;&gt;上一篇文章&lt;/a&gt;中，我们把 Agent 定义为“模型决策、工具执行、状态与反馈闭环”的软件系统。如果继续向下追问，真正决定系统能否进入生产环境的，往往不是提示词，而是两个接口问题：模型如何把意图交给确定性程序执行，以及应用如何用统一协议连接外部能力。&lt;/p&gt;
+&lt;p&gt;前一个问题对应 &lt;strong&gt;Tool Calling（工具调用）&lt;/strong&gt;，后一个问题对应 &lt;strong&gt;Model Context Protocol（MCP）&lt;/strong&gt;。两者经常被包装成“一句话接入工具”，但其内部包含状态机、Schema、关联标识、并发、幂等、错误语义、传输、授权与审计等一整套分布式系统问题。本文以 OpenAI Responses API 和 MCP &lt;code&gt;2026-07-28&lt;/code&gt; 规范为基线，从线上系统的视角拆开这些机制。&lt;/p&gt;"><i class="fab fa-tumblr " aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&t=硬核解析：AI Agent的工具调用机制与MCP协议"><i class="fab fa-hacker-news " aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+    
+    
+      <div id="toc">
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E5%85%88%E5%88%92%E6%B8%85%E8%BE%B9%E7%95%8C%EF%BC%9A%E6%A8%A1%E5%9E%8B%E4%B8%8D%E4%BC%9A%E7%9C%9F%E7%9A%84%E8%B0%83%E7%94%A8%E5%87%BD%E6%95%B0"><span class="toc-number">1.</span> <span class="toc-text">一、先划清边界：模型不会真的调用函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81Responses-API-%E7%9A%84%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E7%8A%B6%E6%80%81%E6%9C%BA"><span class="toc-number">2.</span> <span class="toc-text">二、Responses API 的工具调用状态机</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-output-%E6%98%AF%E5%BC%82%E6%9E%84%E4%BA%8B%E4%BB%B6%E6%B5%81%EF%BC%8C%E4%B8%8D%E6%98%AF%E2%80%9C%E4%B8%80%E6%9D%A1%E5%8A%A9%E6%89%8B%E6%B6%88%E6%81%AF%E2%80%9D"><span class="toc-number">2.1.</span> <span class="toc-text">1. output 是异构事件流，不是“一条助手消息”</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E4%B8%80%E8%BD%AE%E5%8F%AF%E8%83%BD%E6%9C%89%E9%9B%B6%E4%B8%AA%E3%80%81%E4%B8%80%E4%B8%AA%E6%88%96%E5%A4%9A%E4%B8%AA%E8%B0%83%E7%94%A8"><span class="toc-number">2.2.</span> <span class="toc-text">2. 一轮可能有零个、一个或多个调用</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%B7%A5%E5%85%B7-Schema-%E6%98%AF%E5%8D%8F%E8%AE%AE%EF%BC%8C%E4%B8%8D%E6%98%AF%E8%A3%85%E9%A5%B0"><span class="toc-number">3.</span> <span class="toc-text">三、工具 Schema 是协议，不是装饰</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-strict-%E5%88%B0%E5%BA%95%E4%BF%9D%E8%AF%81%E4%BB%80%E4%B9%88"><span class="toc-number">3.1.</span> <span class="toc-text">1. strict 到底保证什么</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%B7%A5%E5%85%B7%E6%8F%8F%E8%BF%B0%E7%9B%B4%E6%8E%A5%E5%BD%B1%E5%93%8D%E8%B7%AF%E7%94%B1%E8%B4%A8%E9%87%8F"><span class="toc-number">3.2.</span> <span class="toc-text">2. 工具描述直接影响路由质量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-tool-choice-%E6%98%AF%E5%8F%AF%E8%B0%83%E7%94%A8%E9%9B%86%E5%90%88%EF%BC%8C%E4%B8%8D%E6%98%AF%E6%9D%83%E9%99%90%E7%B3%BB%E7%BB%9F"><span class="toc-number">3.3.</span> <span class="toc-text">3. tool_choice 是可调用集合，不是权限系统</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E4%B8%80%E4%B8%AA%E5%8F%AF%E8%BF%90%E8%A1%8C%E7%9A%84-Responses-API-%E5%B7%A5%E5%85%B7%E5%BE%AA%E7%8E%AF"><span class="toc-number">4.</span> <span class="toc-text">四、一个可运行的 Responses API 工具循环</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E7%94%9F%E4%BA%A7%E8%BF%90%E8%A1%8C%E6%97%B6%EF%BC%9A%E7%9C%9F%E6%AD%A3%E5%9B%B0%E9%9A%BE%E7%9A%84%E6%98%AF%E5%A4%B1%E8%B4%A5%E8%AF%AD%E4%B9%89"><span class="toc-number">5.</span> <span class="toc-text">五、生产运行时：真正困难的是失败语义</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E4%B8%8D%E8%A6%81%E6%8A%8A%E6%89%80%E6%9C%89%E5%A4%B1%E8%B4%A5%E9%83%BD%E5%8F%AB-exception"><span class="toc-number">5.1.</span> <span class="toc-text">1. 不要把所有失败都叫 exception</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E8%B6%85%E6%97%B6%E3%80%81%E5%8F%96%E6%B6%88%E4%B8%8E%E8%83%8C%E5%8E%8B%E8%A6%81%E9%80%90%E5%B1%82%E4%BC%A0%E6%92%AD"><span class="toc-number">5.2.</span> <span class="toc-text">2. 超时、取消与背压要逐层传播</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%AE%A1%E6%89%B9%E5%BF%85%E9%A1%BB%E7%BB%91%E5%AE%9A%E4%B8%8D%E5%8F%AF%E5%8F%98%E5%8A%A8%E4%BD%9C"><span class="toc-number">5.3.</span> <span class="toc-text">3. 审批必须绑定不可变动作</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E5%B9%82%E7%AD%89%E8%AE%B0%E5%BD%95%E5%BF%85%E9%A1%BB%E8%B7%A8%E8%B6%8A%E6%95%B4%E4%B8%AA%E5%89%AF%E4%BD%9C%E7%94%A8%E7%AA%97%E5%8F%A3"><span class="toc-number">5.4.</span> <span class="toc-text">4. 幂等记录必须跨越整个副作用窗口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-%E8%BD%A8%E8%BF%B9%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E4%B8%8E%E8%AF%84%E6%B5%8B"><span class="toc-number">5.5.</span> <span class="toc-text">5. 轨迹可观测性与评测</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E5%A4%A7%E5%B7%A5%E5%85%B7%E9%9B%86%EF%BC%9ATool-Search-%E4%B8%8E%E7%A8%8B%E5%BA%8F%E5%8C%96%E8%B0%83%E7%94%A8"><span class="toc-number">6.</span> <span class="toc-text">六、大工具集：Tool Search 与程序化调用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81MCP-%E7%9A%84%E6%9E%B6%E6%9E%84%EF%BC%9A%E6%A0%87%E5%87%86%E5%8C%96%E7%9A%84%E6%98%AF%E8%BF%9E%E6%8E%A5%EF%BC%8C%E4%B8%8D%E6%98%AF%E6%99%BA%E8%83%BD"><span class="toc-number">7.</span> <span class="toc-text">七、MCP 的架构：标准化的是连接，不是智能</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E4%B8%89%E5%A5%97%E5%85%B3%E8%81%94%E6%A0%87%E8%AF%86%E4%B8%8D%E8%A6%81%E6%B7%B7%E7%94%A8"><span class="toc-number">7.1.</span> <span class="toc-text">1. 三套关联标识不要混用</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%812026-07-28%EF%BC%9AMCP-%E5%B7%B2%E7%BB%8F%E6%98%AF%E6%97%A0%E7%8A%B6%E6%80%81%E5%8D%8F%E8%AE%AE"><span class="toc-number">8.</span> <span class="toc-text">八、2026-07-28：MCP 已经是无状态协议</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B9%9D%E3%80%81%E4%BB%8E%E5%8E%9F%E5%A7%8B%E6%8A%A5%E6%96%87%E7%90%86%E8%A7%A3-tools-list-%E4%B8%8E-tools-call"><span class="toc-number">9.</span> <span class="toc-text">九、从原始报文理解 tools&#x2F;list 与 tools&#x2F;call</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E8%87%AA%E6%8F%8F%E8%BF%B0%E7%9A%84-tools-list"><span class="toc-number">9.1.</span> <span class="toc-text">1. 自描述的 tools&#x2F;list</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%B8%A6%E5%BC%BA%E5%85%B3%E8%81%94%E7%9A%84-tools-call"><span class="toc-number">9.2.</span> <span class="toc-text">2. 带强关联的 tools&#x2F;call</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-isError-%E4%B8%8E-JSON-RPC-error-%E6%98%AF%E4%B8%A4%E5%B1%82%E9%94%99%E8%AF%AF"><span class="toc-number">9.3.</span> <span class="toc-text">3. isError 与 JSON-RPC error 是两层错误</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E3%80%81MRTR%EF%BC%9A%E6%97%A0%E7%8A%B6%E6%80%81%E5%8D%8F%E8%AE%AE%E5%A6%82%E4%BD%95%E5%A4%84%E7%90%86%E4%B8%AD%E9%80%94%E8%BE%93%E5%85%A5"><span class="toc-number">10.</span> <span class="toc-text">十、MRTR：无状态协议如何处理中途输入</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E4%B8%80%E3%80%81%E4%B8%A4%E7%A7%8D%E6%A0%87%E5%87%86%E4%BC%A0%E8%BE%93%EF%BC%9Astdio-%E4%B8%8E-Streamable-HTTP"><span class="toc-number">11.</span> <span class="toc-text">十一、两种标准传输：stdio 与 Streamable HTTP</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-stdio"><span class="toc-number">11.1.</span> <span class="toc-text">1. stdio</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-Streamable-HTTP"><span class="toc-number">11.2.</span> <span class="toc-text">2. Streamable HTTP</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E4%BA%8C%E3%80%81MCP-%E6%8E%88%E6%9D%83%EF%BC%9AToken-%E5%BF%85%E9%A1%BB%E7%BB%91%E5%AE%9A%E7%9B%AE%E6%A0%87%E8%B5%84%E6%BA%90"><span class="toc-number">12.</span> <span class="toc-text">十二、MCP 授权：Token 必须绑定目标资源</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E4%B8%89%E3%80%81%E7%94%A8-MCP-Python-SDK-v2-%E6%9A%B4%E9%9C%B2%E5%90%8C%E4%B8%80%E4%B8%AA%E5%B7%A5%E5%85%B7"><span class="toc-number">13.</span> <span class="toc-text">十三、用 MCP Python SDK v2 暴露同一个工具</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E5%9B%9B%E3%80%81%E6%8A%8A-MCP-%E5%B7%A5%E5%85%B7%E6%A1%A5%E6%8E%A5%E8%BF%9B%E6%A8%A1%E5%9E%8B%E6%97%B6%E8%AF%A5%E5%81%9A%E4%BB%80%E4%B9%88"><span class="toc-number">14.</span> <span class="toc-text">十四、把 MCP 工具桥接进模型时该做什么</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E4%BA%94%E3%80%81%E4%B8%8A%E7%BA%BF%E5%89%8D%E6%A3%80%E6%9F%A5%E6%B8%85%E5%8D%95"><span class="toc-number">15.</span> <span class="toc-text">十五、上线前检查清单</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%93%E8%AF%AD"><span class="toc-number">16.</span> <span class="toc-text">结语</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="toc-number">17.</span> <span class="toc-text">参考资料</span></a></li></ol>
+      </div>
+    
+  </span>
+</div>
+
+    
+    <div class="content index py4 ">
+        
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+  <header>
+    
+    <h1 class="posttitle p-name" itemprop="name headline">
+        硬核解析：AI Agent的工具调用机制与MCP协议
+    </h1>
+
+
+
+    <div class="meta">
+      <span class="author p-author h-card" itemprop="author" itemscope itemtype="http://schema.org/Person">
+        <span class="p-name" itemprop="name">Sliver Eagle</span>
+      </span>
+      
+    <div class="postdate">
+      
+        <time datetime="2026-08-16T20:23:00.000Z" class="dt-published" itemprop="datePublished">2026-08-17</time>
+        
+      
+    </div>
+
+
+      
+    <div class="article-category">
+        <i class="fa-solid fa-archive"></i>
+        <a class="category-link" href="/categories/%E4%BA%BA%E5%B7%A5%E6%99%BA%E8%83%BD/">人工智能</a>
+    </div>
+
+
+      
+    <div class="article-tag">
+        <i class="fa-solid fa-tag"></i>
+        <a class="p-category" href="/tags/AI-Agent/" rel="tag">AI Agent</a>, <a class="p-category" href="/tags/MCP/" rel="tag">MCP</a>, <a class="p-category" href="/tags/OpenAI/" rel="tag">OpenAI</a>, <a class="p-category" href="/tags/Tool-Calling/" rel="tag">Tool Calling</a>
+    </div>
+
+
+    </div>
+  </header>
+  
+
+  <div class="content e-content" itemprop="articleBody">
+    <p>在<a href="/2026/08/17/AI-Agent%E5%8E%9F%E7%90%86%E4%B8%8E%E6%9E%B6%E6%9E%84/">上一篇文章</a>中，我们把 Agent 定义为“模型决策、工具执行、状态与反馈闭环”的软件系统。如果继续向下追问，真正决定系统能否进入生产环境的，往往不是提示词，而是两个接口问题：模型如何把意图交给确定性程序执行，以及应用如何用统一协议连接外部能力。</p>
+<p>前一个问题对应 <strong>Tool Calling（工具调用）</strong>，后一个问题对应 <strong>Model Context Protocol（MCP）</strong>。两者经常被包装成“一句话接入工具”，但其内部包含状态机、Schema、关联标识、并发、幂等、错误语义、传输、授权与审计等一整套分布式系统问题。本文以 OpenAI Responses API 和 MCP <code>2026-07-28</code> 规范为基线，从线上系统的视角拆开这些机制。</p>
+<span id="more"></span>
+
+<h2 id="一、先划清边界：模型不会真的调用函数"><a href="#一、先划清边界：模型不会真的调用函数" class="headerlink" title="一、先划清边界：模型不会真的调用函数"></a>一、先划清边界：模型不会真的调用函数</h2><p>Tool Calling 的本质不是把 Python 函数“塞进模型”，而是建立一种结构化协议：应用把工具的名称、说明和参数 Schema 发给模型；模型返回“希望调用哪个工具、参数是什么”的数据；应用验证后自行执行，再把结果作为新输入交回模型。</p>
+<p>因此，模型只有<strong>提议权</strong>，运行时才有<strong>执行权</strong>。一次看起来像函数调用的过程，实际上跨过了三个信任域：</p>
+<ol>
+<li>模型生成不可信的调用意图；</li>
+<li>Agent 运行时进行路由、校验、授权、审批与调度；</li>
+<li>工具服务在自己的安全边界内执行，并返回不可信的外部数据。</li>
+</ol>
+<p>MCP 位于更下一层。它不规定模型如何推理，也不要求 Host 使用某一家模型 API；它规定 Host 内的 Client 如何发现并调用一个 Server 暴露的 Tools、Resources 和 Prompts。可以用下面这张表避免概念混淆：</p>
+<table>
+<thead>
+<tr>
+<th>层次</th>
+<th>主要问题</th>
+<th>典型数据</th>
+<th>不负责什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Tool Calling</td>
+<td>模型如何表达动作意图</td>
+<td>工具名、JSON 参数、<code>call_id</code>、工具结果</td>
+<td>不执行代码，不自动授权</td>
+</tr>
+<tr>
+<td>Agent Runtime</td>
+<td>谁能执行、何时执行、如何循环</td>
+<td>状态、策略、审批、预算、幂等记录</td>
+<td>不替工具实现业务规则</td>
+</tr>
+<tr>
+<td>MCP</td>
+<td>Host 如何标准化连接外部能力</td>
+<td>JSON-RPC、<code>tools/list</code>、<code>tools/call</code>、Schema</td>
+<td>不判断工具是否可信、是否该调用</td>
+</tr>
+<tr>
+<td>Tool Service</td>
+<td>动作具体如何完成</td>
+<td>数据库查询、第三方 API、事务结果</td>
+<td>不应相信模型传入的身份或权限</td>
+</tr>
+</tbody></table>
+<p>这两个结论贯穿全文：<strong>Schema 合法不等于业务语义正确；协议互通不等于安全可信。</strong></p>
+<h2 id="二、Responses-API-的工具调用状态机"><a href="#二、Responses-API-的工具调用状态机" class="headerlink" title="二、Responses API 的工具调用状态机"></a>二、Responses API 的工具调用状态机</h2><h3 id="1-output-是异构事件流，不是“一条助手消息”"><a href="#1-output-是异构事件流，不是“一条助手消息”" class="headerlink" title="1. output 是异构事件流，不是“一条助手消息”"></a>1. <code>output</code> 是异构事件流，不是“一条助手消息”</h3><p>Responses API 的 <code>response.output</code> 是一个数组。数组项可能是 <code>message</code>、<code>function_call</code>、推理相关 item、工具搜索 item，或其他受支持类型。生产代码不能假设 <code>output[0]</code> 就是文本，也不能只读取 <code>output_text</code> 后丢掉其余 item。</p>
+<p>一个函数调用 item 的核心形态如下：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;fc_01J...&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;function_call&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;call_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;call_01J...&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;get_order&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;arguments&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&#123;\&quot;order_id\&quot;:\&quot;ORD-1001\&quot;,\&quot;detail\&quot;:\&quot;summary\&quot;&#125;&quot;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>这里至少有两个标识符：</p>
+<ul>
+<li><code>id</code> 标识这个 <strong>output item</strong>；</li>
+<li><code>call_id</code> 标识一次<strong>逻辑工具调用</strong>，后续 <code>function_call_output</code> 必须用它关联结果。</li>
+</ul>
+<p>工具运行结束后，应用追加的不是普通 user message，而是专门的输入 item：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;function_call_output&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;call_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;call_01J...&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;output&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&#123;\&quot;ok\&quot;:true,\&quot;data\&quot;:&#123;\&quot;order_id\&quot;:\&quot;ORD-1001\&quot;,\&quot;status\&quot;:\&quot;shipped\&quot;&#125;&#125;&quot;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p><code>output</code> 通常是字符串，可以承载 JSON、错误码或普通文本；图片和文件另有对应内容类型。它是模型下一轮观察到的数据，而不是 API 对真实函数返回类型的承诺。</p>
+<p><img src="/img/AI-Agent-Tool-MCP/tool-call-state-machine.svg" alt="Responses API工具调用状态机"></p>
+<p>完整循环应实现为状态机，而不是写死“两次请求”：</p>
+<ol>
+<li>将用户输入、指令和工具定义发送给模型；</li>
+<li>保存本次 <code>response.output</code> 的<strong>全部 item</strong>；</li>
+<li>若存在一个或多个 <code>function_call</code>，逐个做解析、校验、授权与执行；</li>
+<li>为每个调用追加同 <code>call_id</code> 的 <code>function_call_output</code>；</li>
+<li>带上完整历史再次请求模型；</li>
+<li>没有工具调用且产生最终 <code>message</code> 时结束，否则继续循环；</li>
+<li>达到轮数、时间或费用上限时由运行时强制终止。</li>
+</ol>
+<p>“完整回放”非常重要。对推理模型，只保存自然语言消息或只保存工具调用，会丢失模型返回的其他状态 item，造成上下文不连续。在服务端保存了前一次响应、且数据政策允许时，应用也可以用 <code>previous_response_id</code> 串联响应；若使用 <code>store=false</code>、Zero Data Retention 或自行管理历史，则应原样保留每轮 output item，包括加密的 reasoning item，而不是把它们重新改写成一段文本。</p>
+<p><code>response.status=&quot;completed&quot;</code> 也只表示<strong>这一轮模型响应</strong>完成，不代表 Agent 任务已终止。反过来，<code>incomplete</code> 中的 <code>output_text</code> 可能只是因 <code>max_output_tokens</code> 截断的半句话，必须在执行任何调用前检查 <code>status</code>、<code>error</code> 与 <code>incomplete_details</code>。</p>
+<h3 id="2-一轮可能有零个、一个或多个调用"><a href="#2-一轮可能有零个、一个或多个调用" class="headerlink" title="2. 一轮可能有零个、一个或多个调用"></a>2. 一轮可能有零个、一个或多个调用</h3><p>模型可以直接回答，也可以同一轮产生多个 <code>function_call</code>。运行时必须把“多个”当作正常路径，而不是异常边界。并行只适用于彼此独立、没有副作用冲突的调用，例如同时读取两张互不相关的订单。下面几类调用不应盲目并行：</p>
+<ul>
+<li>后一个参数依赖前一个结果；</li>
+<li>两个调用可能修改同一资源；</li>
+<li>任一调用需要人工审批；</li>
+<li>工具存在严格的速率限制或事务顺序；</li>
+<li>部分成功会留下难以补偿的外部状态。</li>
+</ul>
+<p>设置 <code>parallel_tool_calls=false</code> 可以让一轮至多产生一个函数调用，但这只是缩小模型输出空间，不能替代服务端锁、事务和幂等控制。允许并行时，应为每个调用单独记录状态，并在全部结果可用后一次性回传；如果某个调用失败，其他调用已经成功，就必须返回每项的独立结果，不能用一个笼统的“批次失败”抹掉事实。</p>
+<h2 id="三、工具-Schema-是协议，不是装饰"><a href="#三、工具-Schema-是协议，不是装饰" class="headerlink" title="三、工具 Schema 是协议，不是装饰"></a>三、工具 Schema 是协议，不是装饰</h2><h3 id="1-strict-到底保证什么"><a href="#1-strict-到底保证什么" class="headerlink" title="1. strict 到底保证什么"></a>1. <code>strict</code> 到底保证什么</h3><p>在 Responses API 中，函数工具通过 JSON Schema 描述参数。启用 <code>strict: true</code> 后，模型生成的参数会可靠地符合受支持的 Schema 子集。严格模式要求每一层对象都设置 <code>additionalProperties: false</code>，并把 <code>properties</code> 中的字段全部列入 <code>required</code>。</p>
+<p>如果业务上允许字段缺省，不应把它简单地从 <code>required</code> 删除；严格模式下应让模型显式传 <code>null</code>：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;object&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;properties&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;order_id&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span><span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;locale&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;string&quot;</span><span class="punctuation">,</span> <span class="string">&quot;null&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;enum&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;zh-CN&quot;</span><span class="punctuation">,</span> <span class="string">&quot;en-US&quot;</span><span class="punctuation">,</span> <span class="literal"><span class="keyword">null</span></span><span class="punctuation">]</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;required&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_id&quot;</span><span class="punctuation">,</span> <span class="string">&quot;locale&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;additionalProperties&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">false</span></span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>严格模式解决的是<strong>结构约束</strong>：字段是否存在、类型是否正确、枚举是否越界。它不证明以下命题：</p>
+<ul>
+<li><code>order_id</code> 确实存在；</li>
+<li>当前用户拥有该订单；</li>
+<li>这个订单现在允许退款；</li>
+<li>模型选择查询订单而不是查询物流是正确的；</li>
+<li>参数来自用户授权，而不是网页中的提示注入；</li>
+<li>即将执行的动作仍与审批时展示的动作一致。</li>
+</ul>
+<p>所以工具入口仍要像公网 API 一样做校验。身份、租户、角色和授权范围应由认证上下文注入，不能让模型填写 <code>user_id</code> 或 <code>is_admin</code>。即便参数通过了 Schema，工具也必须重新检查对象级权限和当前业务状态。</p>
+<h3 id="2-工具描述直接影响路由质量"><a href="#2-工具描述直接影响路由质量" class="headerlink" title="2. 工具描述直接影响路由质量"></a>2. 工具描述直接影响路由质量</h3><p>模型选择工具依赖名称、描述、参数说明和当前任务。<code>get_data</code>、<code>run_action</code> 这类宽泛接口会把大量隐含分支推给模型；更好的设计是窄职责、可验证语义和明确失败条件，例如：</p>
+<ul>
+<li><code>get_order</code>：只读、按订单号查询当前用户的订单；</li>
+<li><code>preview_refund</code>：只计算可退金额，不产生副作用；</li>
+<li><code>commit_refund</code>：使用审批令牌提交退款，要求幂等键。</li>
+</ul>
+<p>不要让模型填写运行时已经知道的字段，也不要把总是连续执行且不可分割的两个内部步骤暴露成两个工具。工具越多，名称越相似，路由混淆和上下文成本越高。工具定义会计入输入 token，因此大规模工具面需要按任务动态缩小。</p>
+<h3 id="3-tool-choice-是可调用集合，不是权限系统"><a href="#3-tool-choice-是可调用集合，不是权限系统" class="headerlink" title="3. tool_choice 是可调用集合，不是权限系统"></a>3. <code>tool_choice</code> 是可调用集合，不是权限系统</h3><p>OpenAI API 提供多种选择策略：</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>含义</th>
+<th>适合场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>&quot;auto&quot;</code></td>
+<td>模型可不调用、调用一个或多个工具</td>
+<td>一般对话与检索</td>
+</tr>
+<tr>
+<td><code>&quot;required&quot;</code></td>
+<td>必须调用至少一个工具</td>
+<td>答案必须来自实时系统</td>
+</tr>
+<tr>
+<td>指定函数</td>
+<td>必须调用指定工具</td>
+<td>已由确定性路由选定动作</td>
+</tr>
+<tr>
+<td><code>&quot;none&quot;</code></td>
+<td>本轮禁止调用工具</td>
+<td>汇总或只读解释阶段</td>
+</tr>
+<tr>
+<td><code>allowed_tools</code></td>
+<td>从已传入工具中限制本轮可调用子集</td>
+<td>分阶段开放能力、保持提示缓存稳定</td>
+</tr>
+</tbody></table>
+<p><code>allowed_tools</code> 能降低误选概率并减少暴露面，但不能作为最终授权。攻击者可能绕过模型直接请求工具服务，模型也可能在被允许的工具内构造越权参数。真正的权限必须在运行时和工具服务端执行。</p>
+<h2 id="四、一个可运行的-Responses-API-工具循环"><a href="#四、一个可运行的-Responses-API-工具循环" class="headerlink" title="四、一个可运行的 Responses API 工具循环"></a>四、一个可运行的 Responses API 工具循环</h2><p>下面的示例固定使用 <code>openai==3.1.0</code> 和 <code>gpt-5.6</code>，只开放内存中的只读订单查询。示例刻意手写循环，以展示 SDK 封装背后的状态管理：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">python -m venv .venv</span><br><span class="line"><span class="built_in">source</span> .venv/bin/activate</span><br><span class="line">pip install <span class="string">&quot;openai==3.1.0&quot;</span></span><br><span class="line"><span class="built_in">export</span> OPENAI_API_KEY=<span class="string">&quot;你的 API 密钥&quot;</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> __future__ <span class="keyword">import</span> annotations</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> json</span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">from</span> dataclasses <span class="keyword">import</span> dataclass</span><br><span class="line"><span class="keyword">from</span> typing <span class="keyword">import</span> <span class="type">Any</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> openai <span class="keyword">import</span> OpenAI</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">MODEL = <span class="string">&quot;gpt-5.6&quot;</span></span><br><span class="line">MAX_ROUNDS = <span class="number">6</span></span><br><span class="line"></span><br><span class="line">ORDERS = &#123;</span><br><span class="line">    <span class="string">&quot;ORD-1001&quot;</span>: &#123;</span><br><span class="line">        <span class="string">&quot;customer_id&quot;</span>: <span class="string">&quot;CUS-7&quot;</span>,</span><br><span class="line">        <span class="string">&quot;status&quot;</span>: <span class="string">&quot;shipped&quot;</span>,</span><br><span class="line">        <span class="string">&quot;currency&quot;</span>: <span class="string">&quot;CNY&quot;</span>,</span><br><span class="line">        <span class="string">&quot;total&quot;</span>: <span class="number">299.00</span>,</span><br><span class="line">        <span class="string">&quot;events&quot;</span>: [<span class="string">&quot;paid&quot;</span>, <span class="string">&quot;packed&quot;</span>, <span class="string">&quot;shipped&quot;</span>],</span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="string">&quot;ORD-1002&quot;</span>: &#123;</span><br><span class="line">        <span class="string">&quot;customer_id&quot;</span>: <span class="string">&quot;CUS-8&quot;</span>,</span><br><span class="line">        <span class="string">&quot;status&quot;</span>: <span class="string">&quot;paid&quot;</span>,</span><br><span class="line">        <span class="string">&quot;currency&quot;</span>: <span class="string">&quot;CNY&quot;</span>,</span><br><span class="line">        <span class="string">&quot;total&quot;</span>: <span class="number">88.00</span>,</span><br><span class="line">        <span class="string">&quot;events&quot;</span>: [<span class="string">&quot;paid&quot;</span>],</span><br><span class="line">    &#125;,</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="meta">@dataclass(<span class="params">frozen=<span class="literal">True</span></span>)</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Actor</span>:</span><br><span class="line">    customer_id: <span class="built_in">str</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">TOOLS = [</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="string">&quot;type&quot;</span>: <span class="string">&quot;function&quot;</span>,</span><br><span class="line">        <span class="string">&quot;name&quot;</span>: <span class="string">&quot;get_order&quot;</span>,</span><br><span class="line">        <span class="string">&quot;description&quot;</span>: (</span><br><span class="line">            <span class="string">&quot;Read one order owned by the authenticated customer. &quot;</span></span><br><span class="line">            <span class="string">&quot;This tool never creates, updates, cancels, or refunds an order.&quot;</span></span><br><span class="line">        ),</span><br><span class="line">        <span class="string">&quot;parameters&quot;</span>: &#123;</span><br><span class="line">            <span class="string">&quot;type&quot;</span>: <span class="string">&quot;object&quot;</span>,</span><br><span class="line">            <span class="string">&quot;properties&quot;</span>: &#123;</span><br><span class="line">                <span class="string">&quot;order_id&quot;</span>: &#123;</span><br><span class="line">                    <span class="string">&quot;type&quot;</span>: <span class="string">&quot;string&quot;</span>,</span><br><span class="line">                    <span class="string">&quot;description&quot;</span>: <span class="string">&quot;Order number such as ORD-1001.&quot;</span>,</span><br><span class="line">                &#125;,</span><br><span class="line">                <span class="string">&quot;detail&quot;</span>: &#123;</span><br><span class="line">                    <span class="string">&quot;type&quot;</span>: <span class="string">&quot;string&quot;</span>,</span><br><span class="line">                    <span class="string">&quot;enum&quot;</span>: [<span class="string">&quot;summary&quot;</span>, <span class="string">&quot;full&quot;</span>],</span><br><span class="line">                    <span class="string">&quot;description&quot;</span>: <span class="string">&quot;Whether to include the order event list.&quot;</span>,</span><br><span class="line">                &#125;,</span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="string">&quot;required&quot;</span>: [<span class="string">&quot;order_id&quot;</span>, <span class="string">&quot;detail&quot;</span>],</span><br><span class="line">            <span class="string">&quot;additionalProperties&quot;</span>: <span class="literal">False</span>,</span><br><span class="line">        &#125;,</span><br><span class="line">        <span class="string">&quot;strict&quot;</span>: <span class="literal">True</span>,</span><br><span class="line">    &#125;</span><br><span class="line">]</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">encode</span>(<span class="params">value: <span class="built_in">dict</span>[<span class="built_in">str</span>, <span class="type">Any</span>]</span>) -&gt; <span class="built_in">str</span>:</span><br><span class="line">    <span class="keyword">return</span> json.dumps(value, ensure_ascii=<span class="literal">False</span>, separators=(<span class="string">&quot;,&quot;</span>, <span class="string">&quot;:&quot;</span>))</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">failure</span>(<span class="params">code: <span class="built_in">str</span>, message: <span class="built_in">str</span>, retryable: <span class="built_in">bool</span> = <span class="literal">False</span></span>) -&gt; <span class="built_in">str</span>:</span><br><span class="line">    <span class="keyword">return</span> encode(</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="string">&quot;ok&quot;</span>: <span class="literal">False</span>,</span><br><span class="line">            <span class="string">&quot;error&quot;</span>: &#123;</span><br><span class="line">                <span class="string">&quot;code&quot;</span>: code,</span><br><span class="line">                <span class="string">&quot;message&quot;</span>: message,</span><br><span class="line">                <span class="string">&quot;retryable&quot;</span>: retryable,</span><br><span class="line">            &#125;,</span><br><span class="line">        &#125;</span><br><span class="line">    )</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_order</span>(<span class="params">actor: Actor, order_id: <span class="built_in">str</span>, detail: <span class="built_in">str</span></span>) -&gt; <span class="built_in">str</span>:</span><br><span class="line">    row = ORDERS.get(order_id)</span><br><span class="line">    <span class="comment"># 对“不存在”和“不属于当前用户”返回相同错误，避免枚举他人订单。</span></span><br><span class="line">    <span class="keyword">if</span> row <span class="keyword">is</span> <span class="literal">None</span> <span class="keyword">or</span> row[<span class="string">&quot;customer_id&quot;</span>] != actor.customer_id:</span><br><span class="line">        <span class="keyword">return</span> failure(<span class="string">&quot;ORDER_NOT_FOUND&quot;</span>, <span class="string">&quot;Order was not found.&quot;</span>)</span><br><span class="line"></span><br><span class="line">    data = &#123;</span><br><span class="line">        <span class="string">&quot;order_id&quot;</span>: order_id,</span><br><span class="line">        <span class="string">&quot;status&quot;</span>: row[<span class="string">&quot;status&quot;</span>],</span><br><span class="line">        <span class="string">&quot;currency&quot;</span>: row[<span class="string">&quot;currency&quot;</span>],</span><br><span class="line">        <span class="string">&quot;total&quot;</span>: row[<span class="string">&quot;total&quot;</span>],</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> detail == <span class="string">&quot;full&quot;</span>:</span><br><span class="line">        data[<span class="string">&quot;events&quot;</span>] = row[<span class="string">&quot;events&quot;</span>]</span><br><span class="line">    <span class="keyword">return</span> encode(&#123;<span class="string">&quot;ok&quot;</span>: <span class="literal">True</span>, <span class="string">&quot;data&quot;</span>: data&#125;)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">dispatch</span>(<span class="params">name: <span class="built_in">str</span>, raw_arguments: <span class="built_in">str</span>, actor: Actor</span>) -&gt; <span class="built_in">str</span>:</span><br><span class="line">    <span class="keyword">if</span> name != <span class="string">&quot;get_order&quot;</span>:</span><br><span class="line">        <span class="keyword">return</span> failure(<span class="string">&quot;UNKNOWN_TOOL&quot;</span>, <span class="string">&quot;The requested tool is not available.&quot;</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        arguments = json.loads(raw_arguments)</span><br><span class="line">    <span class="keyword">except</span> json.JSONDecodeError:</span><br><span class="line">        <span class="keyword">return</span> failure(<span class="string">&quot;INVALID_JSON&quot;</span>, <span class="string">&quot;Tool arguments are not valid JSON.&quot;</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># strict 模式之外仍保留运行时校验，防止重放、旧客户端或旁路请求。</span></span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> <span class="built_in">isinstance</span>(arguments, <span class="built_in">dict</span>) <span class="keyword">or</span> <span class="built_in">set</span>(arguments) != &#123;<span class="string">&quot;order_id&quot;</span>, <span class="string">&quot;detail&quot;</span>&#125;:</span><br><span class="line">        <span class="keyword">return</span> failure(<span class="string">&quot;INVALID_ARGUMENTS&quot;</span>, <span class="string">&quot;Unexpected or missing arguments.&quot;</span>)</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> <span class="built_in">isinstance</span>(arguments[<span class="string">&quot;order_id&quot;</span>], <span class="built_in">str</span>):</span><br><span class="line">        <span class="keyword">return</span> failure(<span class="string">&quot;INVALID_ORDER_ID&quot;</span>, <span class="string">&quot;order_id must be a string.&quot;</span>)</span><br><span class="line">    <span class="keyword">if</span> arguments[<span class="string">&quot;detail&quot;</span>] <span class="keyword">not</span> <span class="keyword">in</span> &#123;<span class="string">&quot;summary&quot;</span>, <span class="string">&quot;full&quot;</span>&#125;:</span><br><span class="line">        <span class="keyword">return</span> failure(<span class="string">&quot;INVALID_DETAIL&quot;</span>, <span class="string">&quot;detail must be summary or full.&quot;</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> get_order(actor, arguments[<span class="string">&quot;order_id&quot;</span>], arguments[<span class="string">&quot;detail&quot;</span>])</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">run_agent</span>(<span class="params">question: <span class="built_in">str</span>, actor: Actor</span>) -&gt; <span class="built_in">str</span>:</span><br><span class="line">    client = OpenAI(api_key=os.environ[<span class="string">&quot;OPENAI_API_KEY&quot;</span>])</span><br><span class="line">    history: <span class="built_in">list</span>[<span class="type">Any</span>] = [&#123;<span class="string">&quot;role&quot;</span>: <span class="string">&quot;user&quot;</span>, <span class="string">&quot;content&quot;</span>: question&#125;]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># call_id -&gt; (工具名, 原始参数, 已序列化结果)</span></span><br><span class="line">    completed: <span class="built_in">dict</span>[<span class="built_in">str</span>, <span class="built_in">tuple</span>[<span class="built_in">str</span>, <span class="built_in">str</span>, <span class="built_in">str</span>]] = &#123;&#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> _ <span class="keyword">in</span> <span class="built_in">range</span>(MAX_ROUNDS):</span><br><span class="line">        response = client.responses.create(</span><br><span class="line">            model=MODEL,</span><br><span class="line">            instructions=(</span><br><span class="line">                <span class="string">&quot;你是订单助手。订单事实必须通过 get_order 查询；&quot;</span></span><br><span class="line">                <span class="string">&quot;不得猜测，不得声称修改、取消或退款。&quot;</span></span><br><span class="line">            ),</span><br><span class="line">            <span class="built_in">input</span>=history,</span><br><span class="line">            tools=TOOLS,</span><br><span class="line">            tool_choice=<span class="string">&quot;auto&quot;</span>,</span><br><span class="line">            parallel_tool_calls=<span class="literal">True</span>,</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">        <span class="comment"># incomplete 可能同时带有截断文本或未完整 item，不能继续执行。</span></span><br><span class="line">        <span class="keyword">if</span> response.status != <span class="string">&quot;completed&quot;</span>:</span><br><span class="line">            <span class="keyword">if</span> response.error <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">                detail = response.error.message</span><br><span class="line">            <span class="keyword">elif</span> response.incomplete_details <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span>:</span><br><span class="line">                detail = response.incomplete_details.reason</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                detail = response.status</span><br><span class="line">            <span class="keyword">raise</span> RuntimeError(<span class="string">f&quot;Model response did not complete: <span class="subst">&#123;detail&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 原样保留 message、function_call 及其他所有 output item。</span></span><br><span class="line">        history.extend(response.output)</span><br><span class="line">        calls = [item <span class="keyword">for</span> item <span class="keyword">in</span> response.output <span class="keyword">if</span> item.<span class="built_in">type</span> == <span class="string">&quot;function_call&quot;</span>]</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> calls:</span><br><span class="line">            messages = [</span><br><span class="line">                item <span class="keyword">for</span> item <span class="keyword">in</span> response.output <span class="keyword">if</span> item.<span class="built_in">type</span> == <span class="string">&quot;message&quot;</span></span><br><span class="line">            ]</span><br><span class="line">            refusals = [</span><br><span class="line">                content.refusal</span><br><span class="line">                <span class="keyword">for</span> message <span class="keyword">in</span> messages</span><br><span class="line">                <span class="keyword">for</span> content <span class="keyword">in</span> message.content</span><br><span class="line">                <span class="keyword">if</span> content.<span class="built_in">type</span> == <span class="string">&quot;refusal&quot;</span></span><br><span class="line">            ]</span><br><span class="line">            <span class="keyword">if</span> refusals:</span><br><span class="line">                <span class="keyword">raise</span> RuntimeError(<span class="string">f&quot;Model refused: <span class="subst">&#123;refusals[<span class="number">0</span>]&#125;</span>&quot;</span>)</span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> messages <span class="keyword">or</span> <span class="keyword">not</span> response.output_text:</span><br><span class="line">                <span class="keyword">raise</span> RuntimeError(<span class="string">&quot;Model stopped without a final message.&quot;</span>)</span><br><span class="line">            <span class="keyword">return</span> response.output_text</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> call <span class="keyword">in</span> calls:</span><br><span class="line">            previous = completed.get(call.call_id)</span><br><span class="line">            <span class="keyword">if</span> previous <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">                output = dispatch(call.name, call.arguments, actor)</span><br><span class="line">                completed[call.call_id] = (call.name, call.arguments, output)</span><br><span class="line">            <span class="keyword">elif</span> previous[:<span class="number">2</span>] == (call.name, call.arguments):</span><br><span class="line">                <span class="comment"># 网络重试或循环重放：同一 call_id 不重复执行工具。</span></span><br><span class="line">                output = previous[<span class="number">2</span>]</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                output = failure(</span><br><span class="line">                    <span class="string">&quot;CALL_ID_CONFLICT&quot;</span>,</span><br><span class="line">                    <span class="string">&quot;A call_id was reused with different arguments.&quot;</span>,</span><br><span class="line">                )</span><br><span class="line"></span><br><span class="line">            history.append(</span><br><span class="line">                &#123;</span><br><span class="line">                    <span class="string">&quot;type&quot;</span>: <span class="string">&quot;function_call_output&quot;</span>,</span><br><span class="line">                    <span class="string">&quot;call_id&quot;</span>: call.call_id,</span><br><span class="line">                    <span class="string">&quot;output&quot;</span>: output,</span><br><span class="line">                &#125;</span><br><span class="line">            )</span><br><span class="line"></span><br><span class="line">    <span class="keyword">raise</span> RuntimeError(<span class="string">f&quot;Agent exceeded <span class="subst">&#123;MAX_ROUNDS&#125;</span> model rounds.&quot;</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    <span class="built_in">print</span>(run_agent(<span class="string">&quot;请查 ORD-1001 的完整状态&quot;</span>, Actor(customer_id=<span class="string">&quot;CUS-7&quot;</span>)))</span><br></pre></td></tr></table></figure>
+
+<p>这个例子有几个容易被简化教程忽略的点：</p>
+<ul>
+<li><code>Actor</code> 来自应用认证上下文，不出现在模型参数中；</li>
+<li><code>response.output</code> 被完整回放，而不是只保留工具调用；</li>
+<li>每个 <code>call_id</code> 都有结果缓存，同一次逻辑调用不会因重试重复执行；</li>
+<li>同一 <code>call_id</code> 若配上不同参数会被视为协议冲突；</li>
+<li>工具返回稳定的错误信封，模型可以根据 <code>retryable</code> 决定是否调整；</li>
+<li>最大轮数由普通代码控制，模型无权自行突破。</li>
+</ul>
+<p>示例中的 <code>call_id</code> 去重仍不是业务幂等的全部。模型重新规划后可能生成语义相同但 <code>call_id</code> 不同的新调用。对退款、发信、建单等写操作，必须另外使用由应用生成并持久化的<strong>业务幂等键</strong>，并让下游服务原子地记录“该键已经产生什么结果”。</p>
+<h2 id="五、生产运行时：真正困难的是失败语义"><a href="#五、生产运行时：真正困难的是失败语义" class="headerlink" title="五、生产运行时：真正困难的是失败语义"></a>五、生产运行时：真正困难的是失败语义</h2><h3 id="1-不要把所有失败都叫-exception"><a href="#1-不要把所有失败都叫-exception" class="headerlink" title="1. 不要把所有失败都叫 exception"></a>1. 不要把所有失败都叫 exception</h3><p>工具运行时至少要区分四类结果：</p>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>例子</th>
+<th>应对策略</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>参数或业务失败</td>
+<td>订单不存在、状态不可退款</td>
+<td>返回稳定错误码，允许模型修正或解释</td>
+</tr>
+<tr>
+<td>瞬时失败</td>
+<td>连接重置、限流、短暂不可用</td>
+<td>有界退避重试，服从服务端重试提示</td>
+</tr>
+<tr>
+<td>永久系统失败</td>
+<td>配置错误、接口版本不兼容</td>
+<td>立即停止该路径并告警</td>
+</tr>
+<tr>
+<td>结果未知</td>
+<td>请求超时，但下游可能已经提交</td>
+<td>先查幂等记录或操作状态，禁止直接重放</td>
+</tr>
+</tbody></table>
+<p>“结果未知”最危险。假设支付服务完成扣款后，响应在网络中丢失。客户端看到超时，并不意味着操作失败；立即重试可能二次扣款。正确做法是携带幂等键，超时后通过查询接口确认最终状态。对于没有幂等能力的第三方系统，应把动作放入带持久状态的作业队列，并明确进入人工处置，而不是让模型猜测。</p>
+<p>错误信封应面向恢复逻辑，而不是直接暴露堆栈：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;ok&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">false</span></span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;error&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;code&quot;</span><span class="punctuation">:</span> <span class="string">&quot;UPSTREAM_TIMEOUT&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;message&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Order service did not answer in time.&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;retryable&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;retry_after_ms&quot;</span><span class="punctuation">:</span> <span class="number">800</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>工具端记录完整异常，模型只看到最小、脱敏、可行动的信息。错误信息本身也可能来自数据库或第三方，不能未经转义就拼进系统提示词，更不能把访问令牌、SQL、内部主机名和堆栈交给模型。</p>
+<h3 id="2-超时、取消与背压要逐层传播"><a href="#2-超时、取消与背压要逐层传播" class="headerlink" title="2. 超时、取消与背压要逐层传播"></a>2. 超时、取消与背压要逐层传播</h3><p>模型请求、工具队列、工具自身和下游 HTTP 都要有独立 deadline。外层取消时，应向下游传播取消信号；但对于已经越过提交点的副作用，取消只代表“不再等待”，不代表动作被撤销。运行时应记录 <code>cancel_requested</code>、<code>commit_started</code>、<code>commit_confirmed</code> 等状态，而不是一个模糊的 <code>cancelled</code>。</p>
+<p>并发还需要背压：限制单个 run 的并发工具数、单用户并发数、全局队列长度和下游连接池。模型一次吐出二十个调用不构成突破配额的理由。超过预算时返回明确错误或暂停，而不是无限排队。</p>
+<h3 id="3-审批必须绑定不可变动作"><a href="#3-审批必须绑定不可变动作" class="headerlink" title="3. 审批必须绑定不可变动作"></a>3. 审批必须绑定不可变动作</h3><p>敏感工具应拆成“预览”和“提交”两阶段。预览返回人类可读摘要以及规范化动作的哈希；用户批准的是具体对象、金额、收件人和版本，而不是一句泛化的“允许退款”。提交时携带短期审批令牌，服务端重新计算哈希并核对：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">approval = Sign(user, tool, canonical_args_hash, resource_version, expires_at)</span><br></pre></td></tr></table></figure>
+
+<p>这可以防止 TOCTOU（检查时与使用时不一致）：审批后订单状态可能变化，或模型可能偷偷换参数。提交端必须重新读取资源、校验版本和权限；若状态变化，令牌失效并要求重新预览。审批 UI 应展示规范化后的最终参数，而不是模型自然语言摘要。</p>
+<h3 id="4-幂等记录必须跨越整个副作用窗口"><a href="#4-幂等记录必须跨越整个副作用窗口" class="headerlink" title="4. 幂等记录必须跨越整个副作用窗口"></a>4. 幂等记录必须跨越整个副作用窗口</h3><p>线上系统往往同时存在四层重试：模型循环重试、Agent 运行时重试、任务队列重试和下游 HTTP Client 重试。若每层都独立重试三次，一次故障理论上可能放大为数十次真实调用。应指定唯一的重试所有者，并把其他层限制为传输级、明确没有到达服务端的失败；对限流和过载，尊重 <code>Retry-After</code>，加入抖动，并设置整个 run 的重试预算。</p>
+<p>写工具的幂等表至少包含：租户、授权主体、工具版本、幂等键、规范化参数哈希、执行状态、资源版本、最终结果和过期时间。状态不应只有成功&#x2F;失败两个值，而应能表达：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">RECEIVED -&gt; VALIDATED -&gt; EXECUTING -&gt; COMMITTED -&gt; RESPONDED</span><br><span class="line">                              \-&gt; UNKNOWN</span><br></pre></td></tr></table></figure>
+
+<p>收到相同幂等键时，若参数哈希相同且已有 <code>COMMITTED</code> 结果，直接重放已保存的结果；若正在 <code>EXECUTING</code>，返回可查询的 operation handle，而不是并发再执行；若键相同但参数哈希不同，返回 <code>IDEMPOTENCY_CONFLICT</code>。进入 <code>UNKNOWN</code> 后只能向权威系统对账，不能把“不知道”擅自改写为“失败”。</p>
+<p>“规范化参数”也比 <code>sort_keys=True</code> 更复杂。金额要统一最小货币单位，Unicode 要统一规范形式，默认值要显式展开，时间要固定时区和精度，资源引用要带版本。否则 <code>299</code>、<code>299.0</code> 与字符串 <code>&quot;299.00&quot;</code> 可能产生不同哈希，或两个语义不同的动作被错误合并。幂等键还要绑定授权主体；用户 A 的键不能命中用户 B 的结果。</p>
+<p>跨多个外部系统无法依靠本地数据库事务获得“恰好一次”。更现实的是持久化状态机加补偿：先记录意图，再执行每个步骤，逐项保存不可变回执；后续步骤失败时，根据业务规则补偿已成功步骤或转人工。工具结果应明确列出每个子动作的 <code>succeeded</code>、<code>failed</code>、<code>unknown</code>，模型只能据此解释，不能用自然语言把部分成功包装成全部成功。</p>
+<p>只读调用也存在一致性语义。订单服务刚完成退款，读副本可能仍返回旧状态。工具定义应说明数据时间戳、来源和一致性级别；涉及后续写入时，提交端必须对主存储重新校验版本。缓存读取适合回答“当前已知状态”，不适合作为高风险动作的唯一前置条件。</p>
+<h3 id="5-轨迹可观测性与评测"><a href="#5-轨迹可观测性与评测" class="headerlink" title="5. 轨迹可观测性与评测"></a>5. 轨迹可观测性与评测</h3><p>一条工具轨迹至少应关联 <code>run_id</code>、<code>response_id</code>、<code>call_id</code>、工具名、参数摘要、授权主体、策略结果、审批 ID、开始&#x2F;结束时间、重试次数、结果码和 token 用量。原始参数与结果可能含个人信息，应按字段脱敏并设置短于业务数据的日志保留期。</p>
+<p>评测不能只看最终文本“像不像正确答案”。生产回归集要覆盖：</p>
+<ul>
+<li>正确选择工具与不该调用工具时保持静默；</li>
+<li>参数精确性、对象级权限与租户隔离；</li>
+<li>并行调用的依赖顺序与部分失败；</li>
+<li>超时、重复响应、过期审批和未知执行结果；</li>
+<li>工具结果中的提示注入与恶意 URL；</li>
+<li>达到轮数或费用上限时是否停止；</li>
+<li>轨迹是否以最少调用完成目标。</li>
+</ul>
+<p>可分别计算工具选择准确率、参数字段准确率、非法调用拦截率、重复副作用率、任务成功率、P95 工具延迟和每任务成本。只有最终答案正确但中途越权读取了数据，仍然是失败样例。</p>
+<h2 id="六、大工具集：Tool-Search-与程序化调用"><a href="#六、大工具集：Tool-Search-与程序化调用" class="headerlink" title="六、大工具集：Tool Search 与程序化调用"></a>六、大工具集：Tool Search 与程序化调用</h2><p>当工具数达到几十甚至几百个时，把全部 Schema 放进每轮上下文会增加 token、延迟和误选概率。OpenAI 的 Tool Search 允许先把部分工具标记为延迟加载，模型检索到相关工具后再加载定义；当前文档要求使用支持该能力的 <code>gpt-5.4</code> 或更新模型。加载以后仍按普通 <code>function_call</code> 处理，授权边界也不改变。</p>
+<p>Programmatic Tool Calling 则允许模型生成一段受控程序，在托管运行时中调用合资格工具并压缩中间结果。要启用它，请求需加入 <code>programmatic_tool_calling</code> 工具，并用每个工具的 <code>allowed_callers</code> 明确允许 <code>programmatic</code> 调用。托管运行时执行生成的 JavaScript，但 client-owned 工具仍由应用执行：程序内层 <code>function_call</code> 带有 <code>caller</code>，应用返回 <code>function_call_output</code> 时必须原样回传 <code>call_id</code> 与 <code>caller</code>；外层 <code>program</code> &#x2F; <code>program_output</code> 则用程序自己的 <code>call_id</code> 关联。</p>
+<p>它适合边界明确的过滤、连接、排序、去重和聚合；如果每个结果都会改变下一步语义判断、动作需要审批，或必须保留原始引用，则应使用直接工具调用。程序少了模型往返，并不意味着结果自然更可靠，仍要同时评测 <code>program_output</code> 与最终 <code>message</code>。</p>
+<p>二者解决的是<strong>上下文规模与编排效率</strong>，不是权限问题。延迟加载的工具在真正可调用前仍应经过任务级 allowlist；程序化环境也必须有调用次数、并发、CPU、时间、网络和副作用限制。</p>
+<h2 id="七、MCP-的架构：标准化的是连接，不是智能"><a href="#七、MCP-的架构：标准化的是连接，不是智能" class="headerlink" title="七、MCP 的架构：标准化的是连接，不是智能"></a>七、MCP 的架构：标准化的是连接，不是智能</h2><p><img src="/img/AI-Agent-Tool-MCP/mcp-bridge.svg" alt="MCP连接Tool Calling的桥接架构"></p>
+<p>MCP 采用 Host—Client—Server 架构：</p>
+<ul>
+<li><strong>Host</strong> 是承载模型与用户体验的应用，创建多个 Client，决定连接权限、用户授权、上下文聚合和跨 Server 编排；</li>
+<li><strong>Client</strong> 由 Host 创建，并且每个 Client 只与一个 Server 通信，负责协议版本、能力、请求路由和隔离；</li>
+<li><strong>Server</strong> 暴露聚焦的 Tools、Resources 与 Prompts，可以是本地进程，也可以是远程服务。</li>
+</ul>
+<p>Server 不应看到整段对话，也不应看见其他 Server 的数据。Host 只把完成当前调用所需的参数交给它。这个隔离原则很重要：若把完整聊天记录、所有检索文档和其他连接器的结果无差别发送给 Server，采用 MCP 也不会自动形成安全边界。</p>
+<h3 id="1-三套关联标识不要混用"><a href="#1-三套关联标识不要混用" class="headerlink" title="1. 三套关联标识不要混用"></a>1. 三套关联标识不要混用</h3><p>当 Responses API 通过 MCP 调用工具时，桥接层通常同时维护至少三类标识：</p>
+<table>
+<thead>
+<tr>
+<th>标识</th>
+<th>作用域</th>
+<th>生成方</th>
+<th>生命周期</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Responses <code>call_id</code></td>
+<td>模型与 Agent 运行时</td>
+<td>模型 API</td>
+<td>从 <code>function_call</code> 到对应输出</td>
+</tr>
+<tr>
+<td>JSON-RPC <code>id</code></td>
+<td>单个 MCP Client—Server 请求</td>
+<td>MCP Client</td>
+<td>从请求到响应；重试必须使用新 ID</td>
+</tr>
+<tr>
+<td><code>trace_id</code> &#x2F; <code>traceparent</code></td>
+<td>整条分布式链路</td>
+<td>可观测性系统</td>
+<td>跨模型、Host、MCP 与下游服务</td>
+</tr>
+</tbody></table>
+<p>它们之间是映射关系，不是同一个值。桥接器可以记录：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">(run_id, response.call_id) -&gt; (mcp_server, jsonrpc.id, trace_id)</span><br></pre></td></tr></table></figure>
+
+<p>如果把 JSON-RPC <code>id</code> 直接当业务幂等键，重试时更换 ID 就会重复副作用；如果把 <code>call_id</code> 当 HTTP 链路追踪 ID，则并行子请求难以表达父子关系。各层标识应各司其职。</p>
+<h2 id="八、2026-07-28：MCP-已经是无状态协议"><a href="#八、2026-07-28：MCP-已经是无状态协议" class="headerlink" title="八、2026-07-28：MCP 已经是无状态协议"></a>八、2026-07-28：MCP 已经是无状态协议</h2><p>这是当前规范与大量旧教程差异最大的地方。MCP <code>2026-07-28</code> 删除了 <code>initialize</code> &#x2F; <code>notifications/initialized</code> 握手和协议级会话，也删除了 Streamable HTTP 的 <code>Mcp-Session-Id</code>。每个请求都是自包含的，携带协议版本与 Client capabilities；Client identity 应随请求提供。Server 必须实现 <code>server/discover</code>，但 Client 是否预先调用它是可选的：Client 也可以直接调用任意 RPC，并在版本不支持时处理 <code>UnsupportedProtocolVersionError</code>。</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th><code>2025-11-25</code> 及更早旧版</th>
+<th>当前 <code>2026-07-28</code></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>启动</td>
+<td><code>initialize</code> 后发送 <code>notifications/initialized</code></td>
+<td>无初始化握手</td>
+</tr>
+<tr>
+<td>版本与能力</td>
+<td>连接建立时协商</td>
+<td>每个请求在 <code>_meta</code> 中自描述</td>
+</tr>
+<tr>
+<td>HTTP 会话</td>
+<td>可用 <code>Mcp-Session-Id</code> 绑定会话</td>
+<td>该请求头已删除</td>
+</tr>
+<tr>
+<td>能力发现</td>
+<td>初始化结果</td>
+<td>Server 必须实现 <code>server/discover</code>，Client 可选调用</td>
+</tr>
+<tr>
+<td>服务端向客户端提问</td>
+<td>会话内发起 JSON-RPC 请求</td>
+<td>通过 MRTR 的 <code>InputRequiredResult</code> 返回</td>
+</tr>
+<tr>
+<td>GET&#x2F;SSE 恢复</td>
+<td>曾有独立 GET 与恢复机制</td>
+<td>GET 和 <code>Last-Event-ID</code> 恢复已删除</td>
+</tr>
+</tbody></table>
+<p>兼容 SDK 仍可能先探测现代协议，在发现旧 Server 后回退到 <code>initialize</code>。这不代表 <code>initialize</code> 仍属于 2026-07-28；它只属于 dual-era 实现的 legacy 路径。新实现不应在现代请求中发送或依赖 <code>Mcp-Session-Id</code>。</p>
+<p>无协议会话并不等于业务不能有状态。购物篮、浏览器上下文或数据库事务应由 Server 创建显式 handle，例如 <code>basket_id</code>，后续作为普通工具参数传回。handle 应不透明、有过期时间，并在每次使用时重新验证调用者权限。对认证服务，handle 是资源名称而不是授权凭据；拿到别人的 handle 不应获得访问权。</p>
+<h2 id="九、从原始报文理解-tools-list-与-tools-call"><a href="#九、从原始报文理解-tools-list-与-tools-call" class="headerlink" title="九、从原始报文理解 tools/list 与 tools/call"></a>九、从原始报文理解 <code>tools/list</code> 与 <code>tools/call</code></h2><h3 id="1-自描述的-tools-list"><a href="#1-自描述的-tools-list" class="headerlink" title="1. 自描述的 tools/list"></a>1. 自描述的 <code>tools/list</code></h3><p>下面是 Streamable HTTP 上的现代请求。注意它没有 <code>initialize</code>，也没有 <code>Mcp-Session-Id</code>：</p>
+<figure class="highlight http"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">POST</span> <span class="string">/mcp</span> <span class="meta">HTTP/1.1</span></span><br><span class="line"><span class="attribute">Host</span><span class="punctuation">: </span>orders.example.com</span><br><span class="line"><span class="attribute">Content-Type</span><span class="punctuation">: </span>application/json</span><br><span class="line"><span class="attribute">Accept</span><span class="punctuation">: </span>application/json, text/event-stream</span><br><span class="line"><span class="attribute">Authorization</span><span class="punctuation">: </span>Bearer &lt;access-token&gt;</span><br><span class="line"><span class="attribute">MCP-Protocol-Version</span><span class="punctuation">: </span>2026-07-28</span><br><span class="line"><span class="attribute">Mcp-Method</span><span class="punctuation">: </span>tools/list</span><br><span class="line"></span><br><span class="line"><span class="language-json"><span class="punctuation">&#123;</span></span></span><br><span class="line"><span class="language-json">  <span class="attr">&quot;jsonrpc&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2.0&quot;</span><span class="punctuation">,</span></span></span><br><span class="line"><span class="language-json">  <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;rpc-41&quot;</span><span class="punctuation">,</span></span></span><br><span class="line"><span class="language-json">  <span class="attr">&quot;method&quot;</span><span class="punctuation">:</span> <span class="string">&quot;tools/list&quot;</span><span class="punctuation">,</span></span></span><br><span class="line"><span class="language-json">  <span class="attr">&quot;params&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span></span><br><span class="line"><span class="language-json">    <span class="attr">&quot;_meta&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span></span><br><span class="line"><span class="language-json">      <span class="attr">&quot;io.modelcontextprotocol/protocolVersion&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2026-07-28&quot;</span><span class="punctuation">,</span></span></span><br><span class="line"><span class="language-json">      <span class="attr">&quot;io.modelcontextprotocol/clientInfo&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span></span><br><span class="line"><span class="language-json">        <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;OrderHost&quot;</span><span class="punctuation">,</span></span></span><br><span class="line"><span class="language-json">        <span class="attr">&quot;version&quot;</span><span class="punctuation">:</span> <span class="string">&quot;1.0.0&quot;</span></span></span><br><span class="line"><span class="language-json">      <span class="punctuation">&#125;</span><span class="punctuation">,</span></span></span><br><span class="line"><span class="language-json">      <span class="attr">&quot;io.modelcontextprotocol/clientCapabilities&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span><span class="punctuation">&#125;</span></span></span><br><span class="line"><span class="language-json">    <span class="punctuation">&#125;</span></span></span><br><span class="line"><span class="language-json">  <span class="punctuation">&#125;</span></span></span><br><span class="line"><span class="language-json"><span class="punctuation">&#125;</span></span></span><br></pre></td></tr></table></figure>
+
+<p>一个相应的响应可以是：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;jsonrpc&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2.0&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;rpc-41&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;result&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;resultType&quot;</span><span class="punctuation">:</span> <span class="string">&quot;complete&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;tools&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">      <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;get_order&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;title&quot;</span><span class="punctuation">:</span> <span class="string">&quot;查询订单&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;description&quot;</span><span class="punctuation">:</span> <span class="string">&quot;按订单号进行只读查询。&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;inputSchema&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;object&quot;</span><span class="punctuation">,</span></span><br><span class="line">          <span class="attr">&quot;properties&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;order_id&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span><span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string&quot;</span><span class="punctuation">&#125;</span></span><br><span class="line">          <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">          <span class="attr">&quot;required&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_id&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">          <span class="attr">&quot;additionalProperties&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">false</span></span></span><br><span class="line">        <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;outputSchema&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;object&quot;</span><span class="punctuation">,</span></span><br><span class="line">          <span class="attr">&quot;properties&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;order_id&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span><span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;status&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span><span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;currency&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span><span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;total&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span><span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;number&quot;</span><span class="punctuation">&#125;</span></span><br><span class="line">          <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">          <span class="attr">&quot;required&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;order_id&quot;</span><span class="punctuation">,</span> <span class="string">&quot;status&quot;</span><span class="punctuation">,</span> <span class="string">&quot;currency&quot;</span><span class="punctuation">,</span> <span class="string">&quot;total&quot;</span><span class="punctuation">]</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;ttlMs&quot;</span><span class="punctuation">:</span> <span class="number">300000</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;cacheScope&quot;</span><span class="punctuation">:</span> <span class="string">&quot;private&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;_meta&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;io.modelcontextprotocol/serverInfo&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;OrderServer&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;version&quot;</span><span class="punctuation">:</span> <span class="string">&quot;1.0.0&quot;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p><code>tools/list</code> 支持 cursor 分页。Client 必须一直取到 <code>nextCursor</code> 缺失为止，不能默认一页就是全集。2026-07-28 的列表结果还提供 <code>ttlMs</code> 与 <code>cacheScope</code>：前者是新鲜度提示，后者决定缓存能否共享。工具集合可以随请求携带的授权而不同，但不能偷偷依赖连接局部状态；相同授权和底层集合不变时，Server 应使用确定顺序，以改善缓存命中。</p>
+<p>如果 Server 声明 <code>listChanged</code>，变化通知也不是“凭空推送”到任意连接。Client 需要打开 <code>subscriptions/listen</code> 长连接并选择 <code>toolsListChanged</code>，通知才在该请求的响应流中到达。收到通知后应使缓存失效并重新分页，而不是增量猜测差异。</p>
+<h3 id="2-带强关联的-tools-call"><a href="#2-带强关联的-tools-call" class="headerlink" title="2. 带强关联的 tools/call"></a>2. 带强关联的 <code>tools/call</code></h3><figure class="highlight http"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">POST</span> <span class="string">/mcp</span> <span class="meta">HTTP/1.1</span></span><br><span class="line"><span class="attribute">Host</span><span class="punctuation">: </span>orders.example.com</span><br><span class="line"><span class="attribute">Content-Type</span><span class="punctuation">: </span>application/json</span><br><span class="line"><span class="attribute">Accept</span><span class="punctuation">: </span>application/json, text/event-stream</span><br><span class="line"><span class="attribute">Authorization</span><span class="punctuation">: </span>Bearer &lt;access-token&gt;</span><br><span class="line"><span class="attribute">MCP-Protocol-Version</span><span class="punctuation">: </span>2026-07-28</span><br><span class="line"><span class="attribute">Mcp-Method</span><span class="punctuation">: </span>tools/call</span><br><span class="line"><span class="attribute">Mcp-Name</span><span class="punctuation">: </span>get_order</span><br><span class="line"></span><br><span class="line"><span class="language-json"><span class="punctuation">&#123;</span></span></span><br><span class="line"><span class="language-json">  <span class="attr">&quot;jsonrpc&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2.0&quot;</span><span class="punctuation">,</span></span></span><br><span class="line"><span class="language-json">  <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;rpc-42&quot;</span><span class="punctuation">,</span></span></span><br><span class="line"><span class="language-json">  <span class="attr">&quot;method&quot;</span><span class="punctuation">:</span> <span class="string">&quot;tools/call&quot;</span><span class="punctuation">,</span></span></span><br><span class="line"><span class="language-json">  <span class="attr">&quot;params&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span></span><br><span class="line"><span class="language-json">    <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;get_order&quot;</span><span class="punctuation">,</span></span></span><br><span class="line"><span class="language-json">    <span class="attr">&quot;arguments&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span><span class="attr">&quot;order_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;ORD-1001&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span></span></span><br><span class="line"><span class="language-json">    <span class="attr">&quot;_meta&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span></span><br><span class="line"><span class="language-json">      <span class="attr">&quot;io.modelcontextprotocol/protocolVersion&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2026-07-28&quot;</span><span class="punctuation">,</span></span></span><br><span class="line"><span class="language-json">      <span class="attr">&quot;io.modelcontextprotocol/clientInfo&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span></span><br><span class="line"><span class="language-json">        <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;OrderHost&quot;</span><span class="punctuation">,</span></span></span><br><span class="line"><span class="language-json">        <span class="attr">&quot;version&quot;</span><span class="punctuation">:</span> <span class="string">&quot;1.0.0&quot;</span></span></span><br><span class="line"><span class="language-json">      <span class="punctuation">&#125;</span><span class="punctuation">,</span></span></span><br><span class="line"><span class="language-json">      <span class="attr">&quot;io.modelcontextprotocol/clientCapabilities&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span><span class="punctuation">&#125;</span></span></span><br><span class="line"><span class="language-json">    <span class="punctuation">&#125;</span></span></span><br><span class="line"><span class="language-json">  <span class="punctuation">&#125;</span></span></span><br><span class="line"><span class="language-json"><span class="punctuation">&#125;</span></span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;jsonrpc&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2.0&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;rpc-42&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;result&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;resultType&quot;</span><span class="punctuation">:</span> <span class="string">&quot;complete&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;content&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">      <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;text&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;text&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&#123;\&quot;order_id\&quot;:\&quot;ORD-1001\&quot;,\&quot;status\&quot;:\&quot;shipped\&quot;,\&quot;currency\&quot;:\&quot;CNY\&quot;,\&quot;total\&quot;:299.0&#125;&quot;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;structuredContent&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;order_id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;ORD-1001&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;status&quot;</span><span class="punctuation">:</span> <span class="string">&quot;shipped&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;currency&quot;</span><span class="punctuation">:</span> <span class="string">&quot;CNY&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;total&quot;</span><span class="punctuation">:</span> <span class="number">299.0</span></span><br><span class="line">    <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;isError&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">false</span></span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;_meta&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;io.modelcontextprotocol/serverInfo&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;OrderServer&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;version&quot;</span><span class="punctuation">:</span> <span class="string">&quot;1.0.0&quot;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p><code>content</code> 面向模型，可以包含文本、图片、音频、资源链接或嵌入资源；<code>structuredContent</code> 面向应用，可以是任意符合 <code>outputSchema</code> 的 JSON 值。为了兼容旧 Client，返回结构化内容时仍建议在 <code>TextContent</code> 中提供序列化副本。这里的 <code>structuredContent</code> 是 <strong>Server 生成的工具结果</strong>，与模型侧“Structured Outputs”不是同一个机制。</p>
+<p>如果声明了 <code>outputSchema</code>，Server 必须让结构化结果符合它，Client 也应独立验证。Server 自己声称“已经验证”不是跨信任域的证明，恶意或错误 Server 完全可能返回不一致的数据。</p>
+<h3 id="3-isError-与-JSON-RPC-error-是两层错误"><a href="#3-isError-与-JSON-RPC-error-是两层错误" class="headerlink" title="3. isError 与 JSON-RPC error 是两层错误"></a>3. <code>isError</code> 与 JSON-RPC error 是两层错误</h3><p>MCP 明确区分协议错误和工具执行错误：</p>
+<ul>
+<li>工具不存在、请求结构畸形或协议内部异常，使用 JSON-RPC <code>error</code>；</li>
+<li>参数值不合法、上游 API 失败、业务规则拒绝等可供模型修正的问题，返回正常 <code>result</code>，并设置 <code>isError: true</code>。</li>
+</ul>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;jsonrpc&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2.0&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;rpc-43&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;error&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;code&quot;</span><span class="punctuation">:</span> <span class="number">-32602</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;message&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Unknown tool: delete_everything&quot;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;jsonrpc&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2.0&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;rpc-44&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;result&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;resultType&quot;</span><span class="punctuation">:</span> <span class="string">&quot;complete&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;content&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">      <span class="punctuation">&#123;</span><span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;text&quot;</span><span class="punctuation">,</span> <span class="attr">&quot;text&quot;</span><span class="punctuation">:</span> <span class="string">&quot;ORDER_NOT_FOUND: order is unavailable.&quot;</span><span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;isError&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>桥接到模型时，两者都要转换成有限、脱敏的工具观察，但运维指标不能混为一谈。大量 <code>-32602</code> 可能是 Client&#x2F;Server 版本或目录缓存错误；大量 <code>ORDER_NOT_FOUND</code> 可能只是用户输入问题。错误分类决定告警对象和重试策略。</p>
+<h2 id="十、MRTR：无状态协议如何处理中途输入"><a href="#十、MRTR：无状态协议如何处理中途输入" class="headerlink" title="十、MRTR：无状态协议如何处理中途输入"></a>十、MRTR：无状态协议如何处理中途输入</h2><p>旧协议允许 Server 在会话中向 Client 发起 <code>elicitation/create</code>、<code>sampling/createMessage</code> 或 <code>roots/list</code> 请求。2026-07-28 不再允许 Server 主动发送 JSON-RPC request，改用 Multi Round-Trip Requests（MRTR）。Server 在处理 <code>tools/call</code> 时返回：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;jsonrpc&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2.0&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;rpc-50&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;result&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;resultType&quot;</span><span class="punctuation">:</span> <span class="string">&quot;input_required&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;inputRequests&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;confirm&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;method&quot;</span><span class="punctuation">:</span> <span class="string">&quot;elicitation/create&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;params&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;mode&quot;</span><span class="punctuation">:</span> <span class="string">&quot;form&quot;</span><span class="punctuation">,</span></span><br><span class="line">          <span class="attr">&quot;message&quot;</span><span class="punctuation">:</span> <span class="string">&quot;确认继续？&quot;</span><span class="punctuation">,</span></span><br><span class="line">          <span class="attr">&quot;requestedSchema&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;object&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;properties&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span><span class="attr">&quot;approved&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span><span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;boolean&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;required&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;approved&quot;</span><span class="punctuation">]</span></span><br><span class="line">          <span class="punctuation">&#125;</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;requestState&quot;</span><span class="punctuation">:</span> <span class="string">&quot;AEAD-protected-opaque-state&quot;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>Client 获取输入后，使用<strong>新的 JSON-RPC <code>id</code></strong> 重试原始方法，在参数中加入 <code>inputResponses</code> 和 Server 返回的 <code>requestState</code>。<code>requestState</code> 对 Client 是不透明值，Client 不解析、不修改；但它会经过不可信 Client 回传，Server 必须把它当作攻击者可控输入。若它影响授权、资源或业务分支，应用 HMAC 或 AEAD 保护完整性，并绑定授权主体、短 TTL、原方法与关键参数摘要。Server 必须拒绝验证失败、重复或过期响应，并把授权重新绑定到当前请求。</p>
+<p>MRTR 是协议往返机制，不应被直接等同于 Host 的安全审批。恶意 Server 完全可以伪造“请确认上传密钥”的 elicitation。Host 必须先判断这个输入请求是否与用户目标和已授予权限一致，再决定如何向用户呈现；高风险动作仍使用 Host 自己的审批策略。</p>
+<h2 id="十一、两种标准传输：stdio-与-Streamable-HTTP"><a href="#十一、两种标准传输：stdio-与-Streamable-HTTP" class="headerlink" title="十一、两种标准传输：stdio 与 Streamable HTTP"></a>十一、两种标准传输：stdio 与 Streamable HTTP</h2><h3 id="1-stdio"><a href="#1-stdio" class="headerlink" title="1. stdio"></a>1. stdio</h3><p>stdio 适合本地 Server。Host 启动子进程，Client 向其 <code>stdin</code> 写入一行一个 JSON-RPC 消息，从 <code>stdout</code> 读取响应。消息本身不能包含未转义换行；Server 的 <code>stdout</code> 只能写协议消息，日志必须写 <code>stderr</code>。否则一条调试输出就足以破坏 framing。</p>
+<p>取消请求时，Client 发送引用 JSON-RPC ID 的 <code>notifications/cancelled</code>。子进程退出会丢失所有在途请求；因为现代协议没有隐藏会话，Client 可以重启进程并按照工具幂等语义决定是否重试。环境变量中的凭据只应注入该进程所需的最小集合，避免把 Host 的全部环境原样继承过去。</p>
+<h3 id="2-Streamable-HTTP"><a href="#2-Streamable-HTTP" class="headerlink" title="2. Streamable HTTP"></a>2. Streamable HTTP</h3><p>Streamable HTTP 使用单一 MCP endpoint，每条消息是一个新的 POST。Server 可以返回单个 JSON，也可以为该请求返回 SSE 流，在最终响应前发送与请求相关的进度通知。当前版本删除了独立 GET stream 和 SSE <code>Last-Event-ID</code> 恢复；流断开意味着在途响应丢失，重发必须使用新的 JSON-RPC ID，并遵守业务幂等规则。</p>
+<p>HTTP 请求必须同时接受 <code>application/json</code> 和 <code>text/event-stream</code>，携带 <code>MCP-Protocol-Version</code> 与 <code>Mcp-Method</code>；<code>tools/call</code>、<code>resources/read</code>、<code>prompts/get</code> 还需携带 <code>Mcp-Name</code>。Header 是为网关路由和观测镜像的元数据，Body 才是事实来源。Header 与 Body 中的版本、方法、名称或 <code>x-mcp-header</code> 参数不一致时，Server 必须拒绝，而不能任选其一。</p>
+<p><code>x-mcp-header</code> 允许 Server 在工具 <code>inputSchema</code> 的原始类型字段上声明一个镜像名，Client 调用时把对应参数复制到 <code>Mcp-Param-&#123;Name&#125;</code>，便于负载均衡器或 WAF 不解析 JSON 就路由。例如 <code>region</code> 可映射为 <code>Mcp-Param-Region</code>。这不是把参数从 Body 移走：两处值必须一致，缺失或冲突应返回 <code>HeaderMismatch</code>。非 ASCII、控制字符以及首尾空白要按规范的 Base64 sentinel 编码。密码、Token 和个人信息不应使用该扩展，因为 Header 更容易进入代理与访问日志；网关也不能只检查 Header 后忽略 Server 对 Body 的最终校验。</p>
+<p>Server 还必须校验 <code>Origin</code> 以防 DNS rebinding；本地 HTTP Server 应只绑定 <code>127.0.0.1</code>，而不是默认监听 <code>0.0.0.0</code>。关闭某个请求的 SSE 响应流表示取消该请求，但同样不保证已经提交的副作用被撤销。</p>
+<h2 id="十二、MCP-授权：Token-必须绑定目标资源"><a href="#十二、MCP-授权：Token-必须绑定目标资源" class="headerlink" title="十二、MCP 授权：Token 必须绑定目标资源"></a>十二、MCP 授权：Token 必须绑定目标资源</h2><p>MCP 的 HTTP 授权规范基于 OAuth 2.1；授权本身对所有 MCP 实现是可选的，但一旦为 HTTP Server 提供授权，就应遵循规范。stdio 不走这套 HTTP OAuth 流，通常从隔离后的环境取得凭据。</p>
+<p>远程 MCP 的关键不是“有 Bearer Token”就够了，而是 Token 必须绑定正确的资源：</p>
+<ol>
+<li>Client 通过 Protected Resource Metadata 发现授权服务器；</li>
+<li>授权请求与换取 Token 的请求都带 <code>resource</code>，其值是 MCP Server 的规范 URI；</li>
+<li>每个 HTTP 请求使用 <code>Authorization: Bearer ...</code>，不得把 Token 放进查询字符串；</li>
+<li>Server 验证 Token 的真实性与有效性（例如验证 JWT 签名或内省 opaque token）、有效期和 scope，并确认自己就是预期 audience &#x2F; <code>resource</code>；</li>
+<li>Token 不能被透传或接受为其他服务的凭据；Server 调下游时应换取或使用专属于下游的凭据。</li>
+</ol>
+<p>最小权限不仅是缩短 scope 列表。Host 应按用户、Server 和任务分别保存授权，写 scope 在需要时 step-up，完成后不继续向模型暴露相应工具。Client identity 和 Server identity 都是自报元数据，只能用于展示、日志与调试，不能作为认证依据。</p>
+<p>此外，MCP Server 本身属于供应链。工具名、描述、annotations、图标 URL、返回文本和资源链接全部可能恶意。Host 应做到：</p>
+<ul>
+<li>连接前展示 Server 来源、发布者和请求的权限；</li>
+<li>默认只开放经过审核的 Server 与工具子集；</li>
+<li>把 annotations 当提示，不把 <code>readOnlyHint=true</code> 当安全证明；</li>
+<li>在调用前展示敏感参数，阻止将密钥、Cookie 或其他 Server 数据外传；</li>
+<li>校验返回 Schema、大小、MIME、URL 域名和重定向；</li>
+<li>对每个 Server 设置独立超时、速率、网络出口和日志策略。</li>
+</ul>
+<h2 id="十三、用-MCP-Python-SDK-v2-暴露同一个工具"><a href="#十三、用-MCP-Python-SDK-v2-暴露同一个工具" class="headerlink" title="十三、用 MCP Python SDK v2 暴露同一个工具"></a>十三、用 MCP Python SDK v2 暴露同一个工具</h2><p>下面的独立示例固定使用官方 <code>mcp==2.0.0</code>。<code>MCPServer</code> 从类型注解生成输入 Schema，从 Pydantic 返回模型生成 <code>outputSchema</code>；<code>Client(mcp)</code> 直接在内存中连接，适合单元测试，不启动端口，也不发送模型请求。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">python -m venv .venv</span><br><span class="line"><span class="built_in">source</span> .venv/bin/activate</span><br><span class="line">pip install <span class="string">&quot;mcp==2.0.0&quot;</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> __future__ <span class="keyword">import</span> annotations</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> asyncio</span><br><span class="line"><span class="keyword">import</span> json</span><br><span class="line"><span class="keyword">from</span> typing <span class="keyword">import</span> Annotated, <span class="type">Literal</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> mcp <span class="keyword">import</span> Client</span><br><span class="line"><span class="keyword">from</span> mcp.server <span class="keyword">import</span> MCPServer</span><br><span class="line"><span class="keyword">from</span> mcp.types <span class="keyword">import</span> ToolAnnotations</span><br><span class="line"><span class="keyword">from</span> pydantic <span class="keyword">import</span> BaseModel, Field</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">mcp = MCPServer(</span><br><span class="line">    <span class="string">&quot;OrderServer&quot;</span>,</span><br><span class="line">    instructions=<span class="string">&quot;Expose read-only order lookup tools.&quot;</span>,</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">ORDERS = &#123;</span><br><span class="line">    <span class="string">&quot;ORD-1001&quot;</span>: &#123;</span><br><span class="line">        <span class="string">&quot;status&quot;</span>: <span class="string">&quot;shipped&quot;</span>,</span><br><span class="line">        <span class="string">&quot;currency&quot;</span>: <span class="string">&quot;CNY&quot;</span>,</span><br><span class="line">        <span class="string">&quot;total&quot;</span>: <span class="number">299.00</span>,</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">OrderView</span>(<span class="title class_ inherited__">BaseModel</span>):</span><br><span class="line">    order_id: <span class="built_in">str</span> = Field(description=<span class="string">&quot;Canonical order number.&quot;</span>)</span><br><span class="line">    status: <span class="type">Literal</span>[<span class="string">&quot;paid&quot;</span>, <span class="string">&quot;packed&quot;</span>, <span class="string">&quot;shipped&quot;</span>, <span class="string">&quot;delivered&quot;</span>]</span><br><span class="line">    currency: <span class="built_in">str</span></span><br><span class="line">    total: <span class="built_in">float</span> = Field(ge=<span class="number">0</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="meta">@mcp.tool(<span class="params"></span></span></span><br><span class="line"><span class="params"><span class="meta">    title=<span class="string">&quot;查询订单&quot;</span>,</span></span></span><br><span class="line"><span class="params"><span class="meta">    annotations=ToolAnnotations(<span class="params"></span></span></span></span><br><span class="line"><span class="params"><span class="params"><span class="meta">        read_only_hint=<span class="literal">True</span>,</span></span></span></span><br><span class="line"><span class="params"><span class="params"><span class="meta">        open_world_hint=<span class="literal">False</span>,</span></span></span></span><br><span class="line"><span class="params"><span class="params"><span class="meta">    </span>),</span></span></span><br><span class="line"><span class="params"><span class="meta"></span>)</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">get_order</span>(<span class="params"></span></span><br><span class="line"><span class="params">    order_id: Annotated[</span></span><br><span class="line"><span class="params">        <span class="built_in">str</span>,</span></span><br><span class="line"><span class="params">        Field(<span class="params">pattern=<span class="string">r&quot;^ORD-\d&#123;4&#125;$&quot;</span>, description=<span class="string">&quot;Order number such as ORD-1001.&quot;</span></span>),</span></span><br><span class="line"><span class="params">    ],</span></span><br><span class="line"><span class="params"></span>) -&gt; OrderView:</span><br><span class="line">    <span class="string">&quot;&quot;&quot;Read one order by its canonical order number.&quot;&quot;&quot;</span></span><br><span class="line">    row = ORDERS.get(order_id)</span><br><span class="line">    <span class="keyword">if</span> row <span class="keyword">is</span> <span class="literal">None</span>:</span><br><span class="line">        <span class="comment"># SDK 将异常转换为模型可见的 is_error 工具结果。</span></span><br><span class="line">        <span class="keyword">raise</span> ValueError(<span class="string">&quot;ORDER_NOT_FOUND: order is unavailable.&quot;</span>)</span><br><span class="line">    <span class="keyword">return</span> OrderView(order_id=order_id, **row)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">main</span>() -&gt; <span class="literal">None</span>:</span><br><span class="line">    <span class="keyword">async</span> <span class="keyword">with</span> Client(mcp) <span class="keyword">as</span> client:</span><br><span class="line">        listed = <span class="keyword">await</span> client.list_tools()</span><br><span class="line">        tool = <span class="built_in">next</span>(item <span class="keyword">for</span> item <span class="keyword">in</span> listed.tools <span class="keyword">if</span> item.name == <span class="string">&quot;get_order&quot;</span>)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">assert</span> tool.output_schema <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">None</span></span><br><span class="line">        <span class="built_in">print</span>(json.dumps(tool.input_schema, ensure_ascii=<span class="literal">False</span>, indent=<span class="number">2</span>))</span><br><span class="line">        <span class="built_in">print</span>(json.dumps(tool.output_schema, ensure_ascii=<span class="literal">False</span>, indent=<span class="number">2</span>))</span><br><span class="line"></span><br><span class="line">        found = <span class="keyword">await</span> client.call_tool(<span class="string">&quot;get_order&quot;</span>, &#123;<span class="string">&quot;order_id&quot;</span>: <span class="string">&quot;ORD-1001&quot;</span>&#125;)</span><br><span class="line">        <span class="keyword">assert</span> found.is_error <span class="keyword">is</span> <span class="literal">False</span></span><br><span class="line">        <span class="keyword">assert</span> found.structured_content == &#123;</span><br><span class="line">            <span class="string">&quot;order_id&quot;</span>: <span class="string">&quot;ORD-1001&quot;</span>,</span><br><span class="line">            <span class="string">&quot;status&quot;</span>: <span class="string">&quot;shipped&quot;</span>,</span><br><span class="line">            <span class="string">&quot;currency&quot;</span>: <span class="string">&quot;CNY&quot;</span>,</span><br><span class="line">            <span class="string">&quot;total&quot;</span>: <span class="number">299.0</span>,</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        missing = <span class="keyword">await</span> client.call_tool(<span class="string">&quot;get_order&quot;</span>, &#123;<span class="string">&quot;order_id&quot;</span>: <span class="string">&quot;ORD-9999&quot;</span>&#125;)</span><br><span class="line">        <span class="keyword">assert</span> missing.is_error <span class="keyword">is</span> <span class="literal">True</span></span><br><span class="line">        <span class="keyword">assert</span> missing.structured_content <span class="keyword">is</span> <span class="literal">None</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    asyncio.run(main())</span><br></pre></td></tr></table></figure>
+
+<p>返回 <code>OrderView</code> 时，SDK 同时生成三样东西：给模型读取的 JSON 文本 <code>content</code>、给应用读取的 <code>structured_content</code>，以及工具目录中的 <code>output_schema</code>。返回注解是契约，运行时结果会被验证。异常则转成 <code>is_error</code> 工具结果，使模型有机会修正订单号；意外内部异常仍应在日志中保留细节，对外只给脱敏错误。</p>
+<p>这里的内存 Client 直接调度 Server 对象，不展示真实 JSON-RPC framing，所以前一节才给出了原始报文。把 <code>Client(mcp)</code> 换成远程 URL 后，Client 会使用 Streamable HTTP；把它换成 stdio transport，则会管理子进程。业务代码的 <code>list_tools</code> 与 <code>call_tool</code> 接口保持一致。</p>
+<p>工具 annotations 只是行为提示。即使示例标记 <code>read_only_hint=True</code>，Host 仍须根据 Server 信任等级和参数决定是否允许；Server 也仍须自行鉴权。生产订单查询还应从请求上下文取得用户身份并做对象级校验，不能照搬这个无认证的内存演示。</p>
+<h2 id="十四、把-MCP-工具桥接进模型时该做什么"><a href="#十四、把-MCP-工具桥接进模型时该做什么" class="headerlink" title="十四、把 MCP 工具桥接进模型时该做什么"></a>十四、把 MCP 工具桥接进模型时该做什么</h2><p>一个可靠桥接器不会把 <code>tools/list</code> 原样复制给模型然后盲转结果，而应形成明确管线：</p>
+<ol>
+<li>对 Server 做信任登记并建立独立 MCP Client；</li>
+<li>分页读取工具目录，按授权过滤，并处理跨 Server 重名；</li>
+<li>将 MCP <code>inputSchema</code> 转成模型函数工具 Schema，保留来源映射；</li>
+<li>模型产生 <code>function_call</code> 后，先做本地策略、参数和审批校验；</li>
+<li>分配新的 JSON-RPC ID，记录它与 <code>call_id</code>、trace 的映射；</li>
+<li>执行 <code>tools/call</code>，验证 <code>outputSchema</code>、大小与内容安全；</li>
+<li>把成功或错误规范化为 <code>function_call_output</code>，继续模型循环。</li>
+</ol>
+<p>跨 Server 重名不能依赖 <code>serverInfo.name</code>，因为它不保证全局唯一。Host 可以使用自身登记 ID 构造模型可见名称，如 <code>crm__search_customer</code>，同时维护到 <code>(server_id, original_tool_name)</code> 的不可伪造映射。不要允许模型直接填写目标 Server URL。</p>
+<p>目录缓存也必须绑定授权主体、scope 和 <code>cacheScope</code>。用户 A 获得的工具集合不能作为公共缓存交给用户 B；权限降级时必须主动失效。调用时仍要重新鉴权，因为“目录里曾经出现过这个工具”不是当前权限证明。</p>
+<p>最后，MCP 工具结果与网页内容一样是不可信输入。Host 可以保留原始结果用于审计，但送进模型前应限制体积、剥离不需要的富媒体、标记来源，并阻止结果中的指令提升权限。模型说“Server 要求你调用另一个写工具”只是一段数据，不是授权链。</p>
+<h2 id="十五、上线前检查清单"><a href="#十五、上线前检查清单" class="headerlink" title="十五、上线前检查清单"></a>十五、上线前检查清单</h2><p>如果一个 Agent 将要连接真实工具，务必认真逐项检查：</p>
+<ul>
+<li>工具是否窄职责，输入和输出是否都有可验证 Schema；</li>
+<li>用户身份是否来自认证上下文，而不是模型参数；</li>
+<li>是否为每个 run 设置轮数、时间、并发、token 与费用预算；</li>
+<li>是否完整保存 output item，并正确关联 <code>call_id</code>；</li>
+<li>读取操作是否去重，写操作是否有持久业务幂等键；</li>
+<li>未知结果是否先查询状态，而不是立即重放；</li>
+<li>审批是否绑定规范化参数、资源版本和有效期；</li>
+<li>工具错误、协议错误和系统错误是否具有不同指标；</li>
+<li>MCP Client 是否分页、按授权缓存并处理工具目录变化；</li>
+<li>现代 MCP 请求是否自描述，且没有误用旧版 Session；</li>
+<li>HTTP Header 与 Body 是否一致，Origin、OAuth audience 和 scope 是否验证；</li>
+<li>stdio Server 是否只在 <code>stdout</code> 输出协议消息；</li>
+<li>Server 描述、annotations、返回内容与 URL 是否都按不可信输入处理；</li>
+<li>轨迹评测是否覆盖越权、注入、超时、重复和部分成功。</li>
+</ul>
+<h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>工具调用不是模型拥有了一双“手”，而是模型向运行时提交了一份结构化动作提案。可靠性来自提案之后的确定性系统：Schema 缩小语法空间，授权确认主体能做什么，审批绑定具体副作用，幂等抵御重试，状态机约束循环，追踪与评测让错误能够被发现。</p>
+<p>MCP 也不是万能工具层。它把 Host 与外部能力之间的发现、调用、传输和授权接口标准化，使不同模型应用和工具服务能够组合；但 Server 是否可信、工具是否该开放、结果是否能进入模型，始终是 Host 的责任。把 Tool Calling 与 MCP 放在各自正确的层次，Agent 才会从“能跑的演示”成长为可审计、可限制、可恢复的生产系统。</p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ul>
+<li><a target="_blank" rel="noopener" href="https://developers.openai.com/api/docs/guides/function-calling">OpenAI：Function calling</a></li>
+<li><a target="_blank" rel="noopener" href="https://developers.openai.com/api/docs/guides/tools-connectors-mcp">OpenAI：MCP and Connectors</a></li>
+<li><a target="_blank" rel="noopener" href="https://developers.openai.com/api/docs/guides/tools-tool-search">OpenAI：Tool search</a></li>
+<li><a target="_blank" rel="noopener" href="https://developers.openai.com/api/docs/guides/tools-programmatic-tool-calling">OpenAI：Programmatic tool calling</a></li>
+<li><a target="_blank" rel="noopener" href="https://developers.openai.com/api/docs/guides/latest-model">OpenAI：Using GPT-5.6</a></li>
+<li><a target="_blank" rel="noopener" href="https://modelcontextprotocol.io/specification/2026-07-28">MCP Specification 2026-07-28</a></li>
+<li><a target="_blank" rel="noopener" href="https://modelcontextprotocol.io/specification/2026-07-28/architecture">MCP 2026-07-28：Architecture</a></li>
+<li><a target="_blank" rel="noopener" href="https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning">MCP 2026-07-28：Versioning and Compatibility</a></li>
+<li><a target="_blank" rel="noopener" href="https://modelcontextprotocol.io/specification/2026-07-28/server/tools">MCP 2026-07-28：Tools</a></li>
+<li><a target="_blank" rel="noopener" href="https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio">MCP 2026-07-28：stdio</a></li>
+<li><a target="_blank" rel="noopener" href="https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http">MCP 2026-07-28：Streamable HTTP</a></li>
+<li><a target="_blank" rel="noopener" href="https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization">MCP 2026-07-28：Authorization</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/modelcontextprotocol/python-sdk/tree/v2.0.0">MCP Python SDK v2</a></li>
+</ul>
+
+  </div>
+</article>
+
+
+    <div class="blog-post-comments">
+        <div id="utterances_thread">
+            <noscript>加载评论需要在浏览器启用 JavaScript 脚本支持。</noscript>
+        </div>
+    </div>
+
+
+        
+          <div id="footer-post-container">
+  <div id="footer-post">
+
+    <div id="nav-footer" style="display: none">
+      <ul>
+        
+          <li><a href="/">首页</a></li>
+        
+          <li><a href="/about/">关于</a></li>
+        
+          <li><a href="/archives/">归档</a></li>
+        
+          <li><a href="/categories/">分类</a></li>
+        
+          <li><a href="/tags/">标签</a></li>
+        
+          <li><a target="_blank" rel="noopener" href="https://github.com/xgshunliruyi">项目</a></li>
+        
+      </ul>
+    </div>
+
+    
+    
+      <div id="toc-footer" style="display: none">
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E5%85%88%E5%88%92%E6%B8%85%E8%BE%B9%E7%95%8C%EF%BC%9A%E6%A8%A1%E5%9E%8B%E4%B8%8D%E4%BC%9A%E7%9C%9F%E7%9A%84%E8%B0%83%E7%94%A8%E5%87%BD%E6%95%B0"><span class="toc-number">1.</span> <span class="toc-text">一、先划清边界：模型不会真的调用函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81Responses-API-%E7%9A%84%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E7%8A%B6%E6%80%81%E6%9C%BA"><span class="toc-number">2.</span> <span class="toc-text">二、Responses API 的工具调用状态机</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-output-%E6%98%AF%E5%BC%82%E6%9E%84%E4%BA%8B%E4%BB%B6%E6%B5%81%EF%BC%8C%E4%B8%8D%E6%98%AF%E2%80%9C%E4%B8%80%E6%9D%A1%E5%8A%A9%E6%89%8B%E6%B6%88%E6%81%AF%E2%80%9D"><span class="toc-number">2.1.</span> <span class="toc-text">1. output 是异构事件流，不是“一条助手消息”</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E4%B8%80%E8%BD%AE%E5%8F%AF%E8%83%BD%E6%9C%89%E9%9B%B6%E4%B8%AA%E3%80%81%E4%B8%80%E4%B8%AA%E6%88%96%E5%A4%9A%E4%B8%AA%E8%B0%83%E7%94%A8"><span class="toc-number">2.2.</span> <span class="toc-text">2. 一轮可能有零个、一个或多个调用</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E5%B7%A5%E5%85%B7-Schema-%E6%98%AF%E5%8D%8F%E8%AE%AE%EF%BC%8C%E4%B8%8D%E6%98%AF%E8%A3%85%E9%A5%B0"><span class="toc-number">3.</span> <span class="toc-text">三、工具 Schema 是协议，不是装饰</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-strict-%E5%88%B0%E5%BA%95%E4%BF%9D%E8%AF%81%E4%BB%80%E4%B9%88"><span class="toc-number">3.1.</span> <span class="toc-text">1. strict 到底保证什么</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%B7%A5%E5%85%B7%E6%8F%8F%E8%BF%B0%E7%9B%B4%E6%8E%A5%E5%BD%B1%E5%93%8D%E8%B7%AF%E7%94%B1%E8%B4%A8%E9%87%8F"><span class="toc-number">3.2.</span> <span class="toc-text">2. 工具描述直接影响路由质量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-tool-choice-%E6%98%AF%E5%8F%AF%E8%B0%83%E7%94%A8%E9%9B%86%E5%90%88%EF%BC%8C%E4%B8%8D%E6%98%AF%E6%9D%83%E9%99%90%E7%B3%BB%E7%BB%9F"><span class="toc-number">3.3.</span> <span class="toc-text">3. tool_choice 是可调用集合，不是权限系统</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E4%B8%80%E4%B8%AA%E5%8F%AF%E8%BF%90%E8%A1%8C%E7%9A%84-Responses-API-%E5%B7%A5%E5%85%B7%E5%BE%AA%E7%8E%AF"><span class="toc-number">4.</span> <span class="toc-text">四、一个可运行的 Responses API 工具循环</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E7%94%9F%E4%BA%A7%E8%BF%90%E8%A1%8C%E6%97%B6%EF%BC%9A%E7%9C%9F%E6%AD%A3%E5%9B%B0%E9%9A%BE%E7%9A%84%E6%98%AF%E5%A4%B1%E8%B4%A5%E8%AF%AD%E4%B9%89"><span class="toc-number">5.</span> <span class="toc-text">五、生产运行时：真正困难的是失败语义</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E4%B8%8D%E8%A6%81%E6%8A%8A%E6%89%80%E6%9C%89%E5%A4%B1%E8%B4%A5%E9%83%BD%E5%8F%AB-exception"><span class="toc-number">5.1.</span> <span class="toc-text">1. 不要把所有失败都叫 exception</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E8%B6%85%E6%97%B6%E3%80%81%E5%8F%96%E6%B6%88%E4%B8%8E%E8%83%8C%E5%8E%8B%E8%A6%81%E9%80%90%E5%B1%82%E4%BC%A0%E6%92%AD"><span class="toc-number">5.2.</span> <span class="toc-text">2. 超时、取消与背压要逐层传播</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%AE%A1%E6%89%B9%E5%BF%85%E9%A1%BB%E7%BB%91%E5%AE%9A%E4%B8%8D%E5%8F%AF%E5%8F%98%E5%8A%A8%E4%BD%9C"><span class="toc-number">5.3.</span> <span class="toc-text">3. 审批必须绑定不可变动作</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E5%B9%82%E7%AD%89%E8%AE%B0%E5%BD%95%E5%BF%85%E9%A1%BB%E8%B7%A8%E8%B6%8A%E6%95%B4%E4%B8%AA%E5%89%AF%E4%BD%9C%E7%94%A8%E7%AA%97%E5%8F%A3"><span class="toc-number">5.4.</span> <span class="toc-text">4. 幂等记录必须跨越整个副作用窗口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-%E8%BD%A8%E8%BF%B9%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E4%B8%8E%E8%AF%84%E6%B5%8B"><span class="toc-number">5.5.</span> <span class="toc-text">5. 轨迹可观测性与评测</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E5%A4%A7%E5%B7%A5%E5%85%B7%E9%9B%86%EF%BC%9ATool-Search-%E4%B8%8E%E7%A8%8B%E5%BA%8F%E5%8C%96%E8%B0%83%E7%94%A8"><span class="toc-number">6.</span> <span class="toc-text">六、大工具集：Tool Search 与程序化调用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81MCP-%E7%9A%84%E6%9E%B6%E6%9E%84%EF%BC%9A%E6%A0%87%E5%87%86%E5%8C%96%E7%9A%84%E6%98%AF%E8%BF%9E%E6%8E%A5%EF%BC%8C%E4%B8%8D%E6%98%AF%E6%99%BA%E8%83%BD"><span class="toc-number">7.</span> <span class="toc-text">七、MCP 的架构：标准化的是连接，不是智能</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E4%B8%89%E5%A5%97%E5%85%B3%E8%81%94%E6%A0%87%E8%AF%86%E4%B8%8D%E8%A6%81%E6%B7%B7%E7%94%A8"><span class="toc-number">7.1.</span> <span class="toc-text">1. 三套关联标识不要混用</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%812026-07-28%EF%BC%9AMCP-%E5%B7%B2%E7%BB%8F%E6%98%AF%E6%97%A0%E7%8A%B6%E6%80%81%E5%8D%8F%E8%AE%AE"><span class="toc-number">8.</span> <span class="toc-text">八、2026-07-28：MCP 已经是无状态协议</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B9%9D%E3%80%81%E4%BB%8E%E5%8E%9F%E5%A7%8B%E6%8A%A5%E6%96%87%E7%90%86%E8%A7%A3-tools-list-%E4%B8%8E-tools-call"><span class="toc-number">9.</span> <span class="toc-text">九、从原始报文理解 tools&#x2F;list 与 tools&#x2F;call</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E8%87%AA%E6%8F%8F%E8%BF%B0%E7%9A%84-tools-list"><span class="toc-number">9.1.</span> <span class="toc-text">1. 自描述的 tools&#x2F;list</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%B8%A6%E5%BC%BA%E5%85%B3%E8%81%94%E7%9A%84-tools-call"><span class="toc-number">9.2.</span> <span class="toc-text">2. 带强关联的 tools&#x2F;call</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-isError-%E4%B8%8E-JSON-RPC-error-%E6%98%AF%E4%B8%A4%E5%B1%82%E9%94%99%E8%AF%AF"><span class="toc-number">9.3.</span> <span class="toc-text">3. isError 与 JSON-RPC error 是两层错误</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E3%80%81MRTR%EF%BC%9A%E6%97%A0%E7%8A%B6%E6%80%81%E5%8D%8F%E8%AE%AE%E5%A6%82%E4%BD%95%E5%A4%84%E7%90%86%E4%B8%AD%E9%80%94%E8%BE%93%E5%85%A5"><span class="toc-number">10.</span> <span class="toc-text">十、MRTR：无状态协议如何处理中途输入</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E4%B8%80%E3%80%81%E4%B8%A4%E7%A7%8D%E6%A0%87%E5%87%86%E4%BC%A0%E8%BE%93%EF%BC%9Astdio-%E4%B8%8E-Streamable-HTTP"><span class="toc-number">11.</span> <span class="toc-text">十一、两种标准传输：stdio 与 Streamable HTTP</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-stdio"><span class="toc-number">11.1.</span> <span class="toc-text">1. stdio</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-Streamable-HTTP"><span class="toc-number">11.2.</span> <span class="toc-text">2. Streamable HTTP</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E4%BA%8C%E3%80%81MCP-%E6%8E%88%E6%9D%83%EF%BC%9AToken-%E5%BF%85%E9%A1%BB%E7%BB%91%E5%AE%9A%E7%9B%AE%E6%A0%87%E8%B5%84%E6%BA%90"><span class="toc-number">12.</span> <span class="toc-text">十二、MCP 授权：Token 必须绑定目标资源</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E4%B8%89%E3%80%81%E7%94%A8-MCP-Python-SDK-v2-%E6%9A%B4%E9%9C%B2%E5%90%8C%E4%B8%80%E4%B8%AA%E5%B7%A5%E5%85%B7"><span class="toc-number">13.</span> <span class="toc-text">十三、用 MCP Python SDK v2 暴露同一个工具</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E5%9B%9B%E3%80%81%E6%8A%8A-MCP-%E5%B7%A5%E5%85%B7%E6%A1%A5%E6%8E%A5%E8%BF%9B%E6%A8%A1%E5%9E%8B%E6%97%B6%E8%AF%A5%E5%81%9A%E4%BB%80%E4%B9%88"><span class="toc-number">14.</span> <span class="toc-text">十四、把 MCP 工具桥接进模型时该做什么</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E4%BA%94%E3%80%81%E4%B8%8A%E7%BA%BF%E5%89%8D%E6%A3%80%E6%9F%A5%E6%B8%85%E5%8D%95"><span class="toc-number">15.</span> <span class="toc-text">十五、上线前检查清单</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%93%E8%AF%AD"><span class="toc-number">16.</span> <span class="toc-text">结语</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="toc-number">17.</span> <span class="toc-text">参考资料</span></a></li></ol>
+      </div>
+    
+
+    <div id="share-footer" style="display: none">
+      <ul>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.facebook.com/sharer.php?u=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/"><i class="fab fa-facebook fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://twitter.com/share?url=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&text=硬核解析：AI Agent的工具调用机制与MCP协议"><i class="fab fa-twitter fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.linkedin.com/shareArticle?url=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&title=硬核解析：AI Agent的工具调用机制与MCP协议"><i class="fab fa-linkedin fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://pinterest.com/pin/create/bookmarklet/?url=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&is_video=false&description=硬核解析：AI Agent的工具调用机制与MCP协议"><i class="fab fa-pinterest fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" href="mailto:?subject=硬核解析：AI Agent的工具调用机制与MCP协议&body=Check out this article: https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/"><i class="fa-solid fa-envelope fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://getpocket.com/save?url=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&title=硬核解析：AI Agent的工具调用机制与MCP协议"><i class="fab fa-get-pocket fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://reddit.com/submit?url=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&title=硬核解析：AI Agent的工具调用机制与MCP协议"><i class="fab fa-reddit fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.stumbleupon.com/submit?url=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&title=硬核解析：AI Agent的工具调用机制与MCP协议"><i class="fab fa-stumbleupon fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://digg.com/submit?url=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&title=硬核解析：AI Agent的工具调用机制与MCP协议"><i class="fab fa-digg fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="http://www.tumblr.com/share/link?url=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&name=硬核解析：AI Agent的工具调用机制与MCP协议&description=&lt;p&gt;在&lt;a href=&#34;/2026/08/17/AI-Agent%E5%8E%9F%E7%90%86%E4%B8%8E%E6%9E%B6%E6%9E%84/&#34;&gt;上一篇文章&lt;/a&gt;中，我们把 Agent 定义为“模型决策、工具执行、状态与反馈闭环”的软件系统。如果继续向下追问，真正决定系统能否进入生产环境的，往往不是提示词，而是两个接口问题：模型如何把意图交给确定性程序执行，以及应用如何用统一协议连接外部能力。&lt;/p&gt;
+&lt;p&gt;前一个问题对应 &lt;strong&gt;Tool Calling（工具调用）&lt;/strong&gt;，后一个问题对应 &lt;strong&gt;Model Context Protocol（MCP）&lt;/strong&gt;。两者经常被包装成“一句话接入工具”，但其内部包含状态机、Schema、关联标识、并发、幂等、错误语义、传输、授权与审计等一整套分布式系统问题。本文以 OpenAI Responses API 和 MCP &lt;code&gt;2026-07-28&lt;/code&gt; 规范为基线，从线上系统的视角拆开这些机制。&lt;/p&gt;"><i class="fab fa-tumblr fa-lg" aria-hidden="true"></i></a></li>
+  <li><a class="icon" target="_blank" rel="noopener" href="https://news.ycombinator.com/submitlink?u=https://xgshunliruyi.github.io/2026/08/17/AI-Agent%E5%B7%A5%E5%85%B7%E8%B0%83%E7%94%A8%E4%B8%8EMCP%E5%8D%8F%E8%AE%AE/&t=硬核解析：AI Agent的工具调用机制与MCP协议"><i class="fab fa-hacker-news fa-lg" aria-hidden="true"></i></a></li>
+</ul>
+
+    </div>
+
+    <div id="actions-footer">
+        <a id="menu" class="icon" href="#" onclick="$('#nav-footer').toggle();return false;"><i class="fa-solid fa-bars fa-lg" aria-hidden="true"></i> 菜单</a>
+        
+          <a id="toc" class="icon" href="#" onclick="$('#toc-footer').toggle();return false;"><i class="fa-solid fa-list fa-lg" aria-hidden="true"></i> 目录</a>
+        
+        <a id="share" class="icon" href="#" onclick="$('#share-footer').toggle();return false;"><i class="fa-solid fa-share-alt fa-lg" aria-hidden="true"></i> 分享</a>
+        <a id="top" style="display:none" class="icon" href="#" onclick="$('html, body').animate({ scrollTop: 0 }, 'fast');"><i class="fa-solid fa-chevron-up fa-lg" aria-hidden="true"></i> 返回顶部</a>
+    </div>
+
+  </div>
+</div>
+
+        
+        <footer id="footer">
+  <div class="footer-left">
+    Copyright &copy;
+    
+    
+    2024-2026
+    Sliver Eagle
+  </div>
+  <div class="footer-right">
+    <nav>
+      <ul>
+        <!--
+       --><li><a href="/">首页</a></li><!--
+     --><!--
+       --><li><a href="/about/">关于</a></li><!--
+     --><!--
+       --><li><a href="/archives/">归档</a></li><!--
+     --><!--
+       --><li><a href="/categories/">分类</a></li><!--
+     --><!--
+       --><li><a href="/tags/">标签</a></li><!--
+     --><!--
+       --><li><a target="_blank" rel="noopener" href="https://github.com/xgshunliruyi">项目</a></li><!--
+     -->
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+    </div>
+    <!-- styles -->
+
+
+
+  <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" onload="this.onload=null;this.rel='stylesheet'"/>
+
+
+    <!-- jquery -->
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" crossorigin="anonymous"></script>
+
+
+
+
+<!-- clipboard -->
+
+  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.7/clipboard.min.js" crossorigin="anonymous"></script>
+  
+  <script type="text/javascript">
+  $(function() {
+    // copy-btn HTML
+    var btn = "<span class=\"btn-copy tooltipped tooltipped-sw\" aria-label=\"复制到粘贴板！\">";
+    btn += '<i class="fa-regular fa-clone"></i>';
+    btn += '</span>';
+    // mount it!
+    $(".highlight table").before(btn);
+    var clip = new ClipboardJS('.btn-copy', {
+      text: function(trigger) {
+        return Array.from(trigger.nextElementSibling.querySelectorAll('.code')).reduce((str,it)=>str+it.innerText+'\n','')
+      }
+    });
+    clip.on('success', function(e) {
+      e.trigger.setAttribute('aria-label', "复制成功！");
+      e.clearSelection();
+    })
+  })
+  </script>
+
+
+<script src="/js/main.js"></script>
+
+<!-- search -->
+
+<!-- Baidu Analytics -->
+
+<!-- Cloudflare Analytics -->
+
+<!-- Disqus Comments -->
+
+<!-- utterances Comments -->
+
+    <script type="text/javascript">
+      var utterances_repo = 'xgshunliruyi/blog-comments';
+      var utterances_issue_term = 'pathname';
+      var utterances_label = 'Comment';
+      var utterances_theme = 'github-dark';
+
+      (function(){
+          var script = document.createElement('script');
+
+          script.src = 'https://utteranc.es/client.js';
+          script.setAttribute('repo', utterances_repo);
+          script.setAttribute('issue-term', 'pathname');
+          script.setAttribute('label', utterances_label);
+          script.setAttribute('theme', utterances_theme);
+          script.setAttribute('crossorigin', 'anonymous');
+          script.async = true;
+          (document.getElementById('utterances_thread')).appendChild(script);
+      }());
+  </script>
+
+</body>
+</html>

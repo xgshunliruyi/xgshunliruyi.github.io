@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 760 1660"
+     width="760"
+     height="1660"
+     role="img"
+     aria-labelledby="mcp-bridge-title mcp-bridge-desc"
+     style="max-width: 100%; height: auto;"
+     preserveAspectRatio="xMidYMid meet">
+  <title id="mcp-bridge-title">MCP 如何把模型工具调用桥接到外部能力</title>
+  <desc id="mcp-bridge-desc">
+    Host 保存完整会话并控制权限，为每个 MCP Server 创建一个隔离的一对一 Client。Client 通过 tools/list
+    发现工具，Host 对工具名做命名空间映射后提供给模型。模型产生的 call_id 由 Host 保存，Client 另建
+    JSON-RPC id 发起 tools/call，结果再映射回原 call_id。下方展示本地 stdio 与当前无状态、自描述的
+    Streamable HTTP 两种传输，以及跨越 Client 与 Server 的信任、授权和审批边界。
+  </desc>
+
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8.5" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#1d4ed8"/>
+    </marker>
+    <marker id="arrow-slate" viewBox="0 0 10 10" refX="8.5" refY="5"
+            markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#334155"/>
+    </marker>
+    <style>
+      text {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          "Noto Sans SC", "Microsoft YaHei", sans-serif;
+        fill: #0f172a;
+      }
+      .heading { font-size: 28px; font-weight: 750; }
+      .subheading { font-size: 15px; font-weight: 550; fill: #475569; }
+      .section-title { font-size: 20px; font-weight: 780; }
+      .card-title { font-size: 18px; font-weight: 750; }
+      .body { font-size: 15px; font-weight: 520; fill: #334155; }
+      .small { font-size: 13px; font-weight: 620; fill: #475569; }
+      .tiny { font-size: 12px; font-weight: 650; fill: #475569; }
+      .dark-title { fill: #ffffff; }
+      .on-dark { fill: #cbd5e1; }
+      .pill { font-size: 14px; font-weight: 760; }
+      .pill-light { fill: #ffffff; }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", monospace;
+        font-size: 13px;
+        font-weight: 650;
+        fill: #0f172a;
+      }
+      .mono-light {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", monospace;
+        font-size: 13px;
+        font-weight: 650;
+        fill: #f8fafc;
+      }
+      .arrow {
+        fill: none;
+        stroke: #1d4ed8;
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        marker-end: url(#arrow-blue);
+      }
+      .bi-arrow {
+        fill: none;
+        stroke: #334155;
+        stroke-width: 2.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        marker-start: url(#arrow-slate);
+        marker-end: url(#arrow-slate);
+      }
+    </style>
+  </defs>
+
+  <!-- Explicit light canvas keeps the diagram readable in dark themes. -->
+  <rect x="1" y="1" width="758" height="1658" rx="22" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
+
+  <text x="380" y="48" class="heading" text-anchor="middle">MCP：能力协议层，不是另一种 Agent</text>
+  <text x="380" y="77" class="subheading" text-anchor="middle">Host 连接模型与多个隔离 Server，并保留授权、路由和上下文控制权</text>
+
+  <!-- Current protocol invariant -->
+  <rect x="40" y="104" width="680" height="72" rx="16" fill="#e0f2fe" stroke="#0369a1" stroke-width="2"/>
+  <text x="64" y="132" class="card-title" fill="#075985">MCP 2026-07-28：无状态、自描述请求</text>
+  <text x="64" y="158" class="body">每次请求携带协议版本与 Client 能力；server/discover 可用于预先发现 Server 能力</text>
+
+  <!-- Host boundary -->
+  <rect x="40" y="206" width="680" height="820" rx="22" fill="#ffffff" stroke="#1d4ed8" stroke-width="3"/>
+  <rect x="40" y="206" width="680" height="62" rx="22" fill="#dbeafe"/>
+  <path d="M40 246 V268 H720 V246" fill="#dbeafe"/>
+  <text x="68" y="244" class="section-title" fill="#1e3a8a">Host（应用与安全控制面）</text>
+  <text x="692" y="244" class="small" text-anchor="end" fill="#1e40af">完整会话只留在这里</text>
+
+  <!-- Model -->
+  <rect x="72" y="294" width="616" height="112" rx="16" fill="#f5f3ff" stroke="#6d28d9" stroke-width="2.5"/>
+  <rect x="92" y="312" width="102" height="32" rx="16" fill="#6d28d9"/>
+  <text x="143" y="333" class="pill pill-light" text-anchor="middle">模型侧</text>
+  <text x="216" y="333" class="card-title">只看见 Host 选择后暴露的工具定义</text>
+  <text x="96" y="371" class="mono">function_call: orders.get_order(...)   call_id = "call_7a"</text>
+  <text x="96" y="394" class="small">call_id 属于模型运行轨迹；MCP Server 不需要理解它</text>
+  <path d="M380 406 V437" class="arrow"/>
+
+  <!-- Mapping pipeline -->
+  <rect x="72" y="442" width="616" height="224" rx="16" fill="#eff6ff" stroke="#1d4ed8" stroke-width="2.5"/>
+  <text x="96" y="473" class="card-title">工具目录与调用桥接</text>
+
+  <circle cx="108" cy="510" r="17" fill="#1d4ed8"/>
+  <text x="108" y="515" class="pill pill-light" text-anchor="middle">1</text>
+  <text x="138" y="505" class="body">Client 请求 tools/list；缓存分页结果并处理目录变更</text>
+  <text x="138" y="529" class="small">得到 name、description、inputSchema、outputSchema 等元数据</text>
+
+  <circle cx="108" cy="565" r="17" fill="#1d4ed8"/>
+  <text x="108" y="570" class="pill pill-light" text-anchor="middle">2</text>
+  <text x="138" y="560" class="body">Host 校验并命名空间化：orders + get_order</text>
+  <text x="138" y="584" class="mono">MCP name "get_order"  →  model name "orders.get_order"</text>
+
+  <circle cx="108" cy="620" r="17" fill="#1d4ed8"/>
+  <text x="108" y="625" class="pill pill-light" text-anchor="middle">3</text>
+  <text x="138" y="615" class="body">模型调用被反向映射，授权后交给对应 Client</text>
+  <text x="138" y="639" class="small">Host 保存 call_id ↔ Client ↔ Server ↔ JSON-RPC id 的关联</text>
+  <path d="M380 666 V697" class="arrow"/>
+
+  <!-- Isolated clients -->
+  <text x="72" y="728" class="card-title">隔离的 MCP Clients：每个 Client 只通信一个 Server</text>
+  <rect x="72" y="748" width="286" height="216" rx="16" fill="#f0fdfa" stroke="#0f766e" stroke-width="2.5"/>
+  <rect x="92" y="766" width="112" height="31" rx="15" fill="#0f766e"/>
+  <text x="148" y="787" class="pill pill-light" text-anchor="middle">Orders Client</text>
+  <text x="96" y="825" class="mono">tools/list   id="rpc-11"</text>
+  <text x="96" y="850" class="mono">tools/call   id="rpc-42"</text>
+  <text x="96" y="881" class="small">每请求附带 _meta：</text>
+  <text x="96" y="904" class="tiny">protocolVersion + clientInfo</text>
+  <text x="96" y="925" class="tiny">+ clientCapabilities</text>
+  <rect x="92" y="938" width="246" height="18" rx="9" fill="#ccfbf1"/>
+  <text x="215" y="952" class="tiny" text-anchor="middle" fill="#115e59">只接收该 Server 所需的最小上下文</text>
+
+  <rect x="402" y="748" width="286" height="216" rx="16" fill="#fff7ed" stroke="#b45309" stroke-width="2.5"/>
+  <rect x="422" y="766" width="126" height="31" rx="15" fill="#b45309"/>
+  <text x="485" y="787" class="pill pill-light" text-anchor="middle">Knowledge Client</text>
+  <text x="426" y="825" class="mono">tools/list   id="rpc-05"</text>
+  <text x="426" y="850" class="mono">resources/read ...</text>
+  <text x="426" y="881" class="small">独立目录、凭据与通知流</text>
+  <text x="426" y="904" class="tiny">不能读取 Orders Client 的消息</text>
+  <text x="426" y="925" class="tiny">也不能读取 Host 的完整会话</text>
+  <rect x="422" y="938" width="246" height="18" rx="9" fill="#ffedd5"/>
+  <text x="545" y="952" class="tiny" text-anchor="middle" fill="#92400e">跨 Server 编排只能由 Host 完成</text>
+
+  <!-- Identity mapping -->
+  <rect x="72" y="984" width="616" height="27" rx="13" fill="#0f172a"/>
+  <text x="380" y="1003" class="mono-light" text-anchor="middle">
+    model call_id="call_7a"  ≠  JSON-RPC id="rpc-42"  （两个生命周期、两个命名空间）
+  </text>
+
+  <!-- Trust boundary -->
+  <line x1="40" y1="1063" x2="720" y2="1063" stroke="#b91c1c" stroke-width="3" stroke-dasharray="9 6"/>
+  <rect x="176" y="1047" width="408" height="33" rx="16" fill="#fee2e2" stroke="#b91c1c"/>
+  <text x="380" y="1069" class="pill" text-anchor="middle" fill="#991b1b">信任 / 授权 / 审批边界：由 Host 强制执行</text>
+
+  <!-- Servers -->
+  <rect x="72" y="1108" width="286" height="146" rx="16" fill="#ecfdf5" stroke="#047857" stroke-width="2.5"/>
+  <text x="96" y="1140" class="card-title">Orders MCP Server</text>
+  <text x="96" y="1168" class="body">工具：get_order</text>
+  <text x="96" y="1193" class="small">返回 structuredContent / content</text>
+  <text x="96" y="1218" class="small">业务失败：result.isError = true</text>
+  <text x="96" y="1241" class="tiny">协议/路由失败：JSON-RPC error</text>
+
+  <rect x="402" y="1108" width="286" height="146" rx="16" fill="#fff7ed" stroke="#b45309" stroke-width="2.5"/>
+  <text x="426" y="1140" class="card-title">Knowledge MCP Server</text>
+  <text x="426" y="1168" class="body">工具 / 资源 / 提示词</text>
+  <text x="426" y="1193" class="small">能力由 server/discover 声明</text>
+  <text x="426" y="1218" class="small">工具注解与内容都视为不可信输入</text>
+  <text x="426" y="1241" class="tiny">Server 之间默认不可见、不可直连</text>
+
+  <!-- Client-server links -->
+  <path d="M215 1026 V1096" class="bi-arrow"/>
+  <path d="M545 1026 V1096" class="bi-arrow"/>
+
+  <!-- Transport bindings -->
+  <text x="40" y="1300" class="section-title">同一 JSON-RPC 语义，两种标准传输绑定</text>
+  <rect x="40" y="1322" width="326" height="150" rx="18" fill="#ffffff" stroke="#334155" stroke-width="2.5"/>
+  <rect x="60" y="1340" width="76" height="31" rx="15" fill="#334155"/>
+  <text x="98" y="1361" class="pill pill-light" text-anchor="middle">stdio</text>
+  <text x="60" y="1395" class="body">Host 启动本地子进程</text>
+  <text x="60" y="1421" class="small">stdin/stdout：逐行 UTF-8 JSON-RPC</text>
+  <text x="60" y="1447" class="small">取消：notifications/cancelled</text>
+
+  <rect x="394" y="1322" width="326" height="150" rx="18" fill="#ffffff" stroke="#0369a1" stroke-width="2.5"/>
+  <rect x="414" y="1340" width="164" height="31" rx="15" fill="#0369a1"/>
+  <text x="496" y="1361" class="pill pill-light" text-anchor="middle">Streamable HTTP</text>
+  <text x="414" y="1395" class="body">每条消息独立 POST /mcp</text>
+  <text x="414" y="1421" class="small">响应：JSON 或该请求专属 SSE</text>
+  <text x="414" y="1447" class="small">无协议级会话；关闭响应流即取消</text>
+
+  <!-- Current HTTP requirements -->
+  <rect x="40" y="1500" width="680" height="122" rx="18" fill="#0f172a"/>
+  <text x="64" y="1531" class="card-title dark-title">远程连接的最低安全基线</text>
+  <text x="64" y="1559" class="small on-dark">每次请求校验版本/方法/名称的 Header 与 Body 一致；Server 校验 Origin</text>
+  <text x="64" y="1585" class="small on-dark">OAuth Token 必须绑定目标资源（audience/resource）；按 Server 和工具授予最小权限</text>
+  <text x="64" y="1611" class="small on-dark">高风险 tools/call 先展示最终参数并审批；不要信任 Server 描述、注解或返回内容</text>
+
+  <text x="380" y="1646" class="small" text-anchor="middle">MCP 解决互操作，不替代 Host 的工具选择验证、业务授权与结果评测</text>
+</svg>
